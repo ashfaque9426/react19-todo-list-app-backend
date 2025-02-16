@@ -1,0 +1,36 @@
+{
+  "name": "todo-list-backend",
+  "version": "1.0.0",
+  "description": "It is my todo-list server for my react 19 app",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ashfaque9426/todolist-backend.git"
+  },
+  "keywords": [
+    "todolist",
+    "express",
+    "server",
+    "api",
+    "rest",
+    "backend",
+    "task",
+    "management"
+  ],
+  "author": "Ashfaq",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/ashfaque9426/todolist-backend/issues"
+  },
+  "homepage": "https://github.com/ashfaque9426/todolist-backend#readme",
+  "dependencies": {
+    "bcrypt": "^5.1.1",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "jsonwebtoken": "^9.0.2",
+    "mysql2": "^3.12.0"
+  }
+}
