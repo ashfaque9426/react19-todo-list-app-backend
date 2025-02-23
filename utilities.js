@@ -43,7 +43,7 @@ export async function register(userName, userEmail, userPassword, recoveryStr) {
                     hashed_pass  VARCHAR(256) NOT NULL,
                     recovery_str VARCHAR(256) NOT NULL,
                     log_in_Status TINYINT(1) NOT NULL DEFAULT 0,
-                    PRIMARY KEY (id),
+                    PRIMARY KEY (id)
                 );
             `;
 
@@ -59,7 +59,7 @@ export async function register(userName, userEmail, userPassword, recoveryStr) {
         // if not create the user and update the record then provide user the user secret along with other user credential information.
         const hashedPassword = await hashPassword(userPassword);
 
-        const [result] = await pool.query(`INSERT INTO users(user_name, user_email, hashed_pass, recovery_str, log_in_Status) VALUES (?, ?, ?, ?)`, [userName, userEmail, hashedPassword, recoveryStr, 1]);
+        const [result] = await pool.query(`INSERT INTO users(user_name, user_email, hashed_pass, recovery_str, log_in_Status) VALUES (?, ?, ?, ?, ?)`, [userName, userEmail, hashedPassword, recoveryStr, 1]);
 
         if (result.affectedRows > 0 && result?.insertId) {
             const payload = {
@@ -200,7 +200,7 @@ export async function getTodoListRecord(userId) {
 
     try {
         const [rows] = await pool.query(`SELECT todo_list_user_data.id as 'ID', todo_list_user_data.todo_date as 'Date', todo_list_user_data.todo_title as 'Title', todo_description as 'Description', user_id as 'UserID'
-FROM todo_list_user_data JOIN users ON todo_list_user_data.user_id = users.id WHERE todo_list_user_data.user_id = ${userId} AND users.log_in_Status = 1`);
+FROM todo_list_user_data JOIN users ON todo_list_user_data.user_id = users.id WHERE todo_list_user_data.user_id = ? AND users.log_in_Status = 1`, [userId]);
         return { dataArr: rows };
     }
     catch (err) {
@@ -222,8 +222,10 @@ export async function getFilteredTodoList(userId, date = "", title = "") {
     let queryStr = `SELECT todo_list_user_data.id as 'ID', todo_list_user_data.todo_date as 'Date', todo_list_user_data.todo_title as 'Title', todo_description as 'Description', user_id as 'UserID'
 FROM todo_list_user_data JOIN users ON todo_list_user_data.user_id = users.id `;
 
+    // set the initial param array
     const params = [];
 
+    // update the query string and push values to params
     if (date) {
         queryStr += `WHERE todo_list_user_data.todo_date = ? AND users.log_in_Status = 1`;
         params.push(date);
@@ -232,6 +234,7 @@ FROM todo_list_user_data JOIN users ON todo_list_user_data.user_id = users.id `;
         params.push(title);
     }
 
+    // try to query to the database if get the result then return the value or return an error message
     try {
         const [rows] = await pool.query(queryStr, params);
         return { dataArr: rows };
@@ -271,9 +274,6 @@ export async function addTodoRecord(date, title, description, userId) {
         return { errMsg: err.message };
     }
 }
-
-const { insertionData, errMsg } = await addTodoRecord('2025-02-20', 'Gadget List', 'Iphone 15', 1);
-console.log(insertionData, errMsg);
 
 // modify todoList record
 export async function modifyTodoRecord(date, title, description, recordId) {
