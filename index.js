@@ -10,7 +10,7 @@ dotenv.config();
 
 // import cors middleware for allow resource sharing to a different domain.
 import cors from 'cors';
-import { register } from './utilities.js';
+import { login, logout, processErrStr, register, updatePassword } from './utilities.js';
 // apply cors middleware to enable cors origin requests.
 app.use(cors());
 
@@ -38,10 +38,8 @@ app.post('/register-user', async (req, res) => {
         const { userData, errMsg } = await register(userName, userEmail, userPassword, recoveryStr);
 
         // if user already exists then set a status code 409 otherwise 500 with the error message.
-        if (errMsg && errMsg.includes("User already exists")) {
-            return res.status(409).json({ errMsg });
-        } else if (errMsg) {
-            return res.status(500).json({ errMsg });
+        if (errMsg) {
+            return processErrStr(res, errMsg, "User already exists", 409);
         }
 
         // if userData is available then send the userData
@@ -55,6 +53,103 @@ app.post('/register-user', async (req, res) => {
         // if any error message occured after calling the during registration process then print the error message to the console and send the message to the client with status code 500
         console.error("Registration error:", err);
         return res.status(500).json({ errMsg: "Unexpected Server error occured during user registration process. Please try again later." });
+    }
+});
+
+// update password api.
+app.patch('/update-password', async (req, res) => {
+    try {
+        // retirve the values
+        const { userEmail, newPassword, recoveryStr }  = req.body;
+
+        // check all values
+        if (!userEmail || !newPassword || !recoveryStr) {
+            return res.status(400).json({ errMsg: "All fields (userName, userEmail, newPassword, recoveryStr) are required." });
+        }
+
+        // update the password.
+        const { succMsg, errMsg } = await updatePassword(userEmail, newPassword, recoveryStr);
+
+        // if error message found
+        if (errMsg) {
+            return processErrStr(res, errMsg, "User does not exist", 404);
+        }
+
+        // if success message is returned then send the succes message.
+        if (succMsg) {
+            return res.status(201).json({ succMsg });
+        }
+
+        // if unexpected error occures.
+        return res.status(500).json({ errMsg: "Unexpected error during registration." });
+    } catch (err) {
+        // if any error message occured after calling the during registration process then print the error message to the console and send the message to the client with status code 500
+        console.error("Password Update error:", err);
+        return res.status(500).json({ errMsg: "Unexpected Server error occured during password update process. Please try again later." });
+    }
+});
+
+// user login api
+app.patch('/user-login', async (req, res) => {
+    try {
+        // retrive the values from req.body object
+        const { userEmail, userPassword } = req.body;
+
+        // check all values
+        if (!userEmail || !userPassword) {
+            return res.status(400).json({ errMsg: "All fields (userEmail, userPassword) are required." });
+        }
+
+        // login to database to get the credential secret
+        const { userData, errMsg } = await login(userEmail, userPassword);
+
+        // if errMsg found
+        if (errMsg) {
+            return processErrStr(res, errMsg, "password does not match", 401);
+        }
+
+        // if successfully logged in then retrun user credential data to client
+        if (userData) {
+            return res.status(201).json({ userData });
+        }
+
+        // if unexpected error occures.
+        return res.status(500).json({ errMsg: "Unexpected error during registration." });
+    } catch (err) {
+        console.error("User Login error:", err);
+        return res.status(500).json({ errMsg: "Unexpected Server error occured during user login process. Please try again later." });
+    }
+});
+
+// user logout api
+app.patch('/user-logout', async (req, res) => {
+    try {
+        // retrieve the user eamil
+        const { userEmail } = req.body;
+
+        // check all values
+        if (!userEmail) {
+            return res.status(400).json({ errMsg: "All fields userEmail is required." });
+        }
+
+        // logout user
+        const { succMsg, errMsg } = await logout(userEmail);
+
+        // if error occured during user logout process
+        if (errMsg) {
+            return processErrStr(res, errMsg, "does not exist", 404);
+        }
+
+        // if user successfully logged out
+        if (succMsg) {
+            return res.status(201).json({ succMsg });
+        }
+
+        // if unexpected error occures.
+        return res.status(500).json({ errMsg: "Unexpected error during registration." });
+    } catch (err) {
+        console.error("User logout error:", err);
+        return res.status(500).json({ errMsg: "Unexpected Server error occured during user logout process. Please try again later." });
     }
 });
 

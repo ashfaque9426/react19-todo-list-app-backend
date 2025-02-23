@@ -313,3 +313,12 @@ export async function deleteTodoRecord(recordId) {
     }
     
 }
+
+// error message
+export async function processErrStr(res, errMsg, msgStr, statusCodeOne) {
+    if (typeof errMsg === "string" && errMsg.includes(msgStr)) {
+        return res.status(statusCodeOne).json({ errMsg });
+    } else {
+        return res.status(500).json({ errMsg });
+    }
+}
