@@ -1,10 +1,67 @@
 import pool from "./database.js";
+import bcrypt from 'bcrypt';
+import jwt from 'jsonwebtoken';
+import dotenv from 'dotenv';
+dotenv.config();
+
+// hash password function
+async function hashPassword(password) {
+    const salt = await bcrypt.genSalt(saltRounds);
+    const hashedPassword = await bcrypt.hash(password, salt);
+    return hashedPassword;
+}
 
 // login and register
-export async function register(userName, userEmail, hashedPass, recoveryStr) {
+export async function register(userName, userEmail, userPassword, recoveryStr) {
+    if (!userName || !userEmail || !userPassword || !recoveryStr) {
+        return { errMsg: "The parameter value for each userName, userEmail, userPassword, recoveryStr are required." };
+    }
+
     // check if user record existed in users table
-    // if existed return an error message user already existed
-    // if not create the user
+    try {
+        const createTableQuery = `
+                CREATE TABLE IF NOT EXISTS users (
+                    id INT NOT NULL AUTO_INCREMENT,
+                    user_name VARCHAR(256) NOT NULL,
+                    user_email VARCHAR(256) NOT NULL,
+                    hashed_pass  VARCHAR(256) NOT NULL,
+                    recovery_str VARCHAR(256) NOT NULL,
+                    log_in_Status TINYINT(1) NOT NULL DEFAULT 0,
+                    PRIMARY KEY (id),
+                );
+            `;
+
+        await pool.query(createTableQuery);
+
+        // if existed return an error message user already existed
+        const [doesUserExist] = await pool.query(`SELECT * FROM users WHERE user_name = ? AND user_email = ?`, [userName, userEmail]);
+
+        if (doesUserExist.length > 0) {
+            return { errMsg: "User record already existed in the database so you can't be able to register with an existing record" };
+        }
+
+        // if not create the user and update the record then provide user the user secret along with other user credential information.
+        const hashedPassword = await hashPassword(userPassword);
+
+        const [result] = await pool.query(`INSERT INTO users(user_name, user_email, hashed_pass, recovery_str, log_in_Status) VALUES (?, ?, ?, ?)`, [userName, userEmail, hashedPassword, recoveryStr, 1]);
+
+        if (result.affectedRows > 0 && result?.insertId) {
+            const payload = {
+                userId: result.insertId,
+                userName: userName,
+                userEmail: userEmail,
+            };
+            const secret = jwt.sign(payload, process.env.USER_LOGIN_SECRET, { expiresIn: '1h' });
+
+            return { userData: { userId: result.insertId, userEmail: userEmail, userName: userName, userSecret: secret } };
+        } else {
+            return { errMsg: 'Something went wrong while trying to create user record. Please try again later.' }
+        }
+    } catch (err) {
+        // if error occures ahen provide the error message to the user console and return user the error message.
+        console.error("Database error:", err.message);
+        return { errMsg: err.message };
+    }
 
 }
 
@@ -53,14 +110,18 @@ export async function getFilteredTodoList(userId, date = "", title = "") {
     let queryStr = `SELECT todo_list_user_data.id as 'ID', todo_list_user_data.todo_date as 'Date', todo_list_user_data.todo_title as 'Title', todo_description as 'Description', user_id as 'UserID'
 FROM todo_list_user_data JOIN users ON todo_list_user_data.user_id = users.id `;
 
+    const params = [];
+
     if (date) {
-        queryStr += `WHERE todo_list_user_data.todo_date = '${date}' AND users.log_in_Status = 1`;
+        queryStr += `WHERE todo_list_user_data.todo_date = ? AND users.log_in_Status = 1`;
+        params.push(date);
     } else if (title) {
-        queryStr += `WHERE todo_list_user_data.todo_title = '${title}' AND users.log_in_Status = 1`;
+        queryStr += `WHERE todo_list_user_data.todo_title = ? AND users.log_in_Status = 1`;
+        params.push(title);
     }
 
     try {
-        const [rows] = await pool.query(queryStr);
+        const [rows] = await pool.query(queryStr, params);
         return { dataArr: rows };
     } catch (err) {
         console.error("Database error:", err.message);
@@ -91,7 +152,7 @@ export async function addTodoRecord(date, title, description, userId) {
 
         await pool.query(createTableQuery);
 
-        const [result] = await pool.query(`INSERT INTO todo_list_user_data (todo_date, todo_title, todo_description, user_id) SELECT '${date}', '${title}', '${description}', id FROM users WHERE id = ${userId} AND log_in_Status = 1`)
+        const [result] = await pool.query(`INSERT INTO todo_list_user_data (todo_date, todo_title, todo_description, user_id) SELECT ?, ?, ?, id FROM users WHERE id = ? AND log_in_Status = 1`, [date, title, description, userId]);
         return { insertionData: result }
     } catch (err) {
         console.error("Database error:", err.message);
@@ -111,7 +172,7 @@ export async function modifyTodoRecord(date, title, description, recordId) {
 
     // if log_in_status is 1 then modify the current record of todo_list_user_data table by id field
     try {
-        const [result] = await pool.query(`UPDATE todo_list_user_data JOIN users ON todo_list_user_data.user_id = users.id SET todo_date = '${date}', todo_title = '${title}', todo_description = '${description}' WHERE todo_list_user_data.id = ${recordId} AND users.log_in_Status = 1`);
+        const [result] = await pool.query(`UPDATE todo_list_user_data JOIN users ON todo_list_user_data.user_id = users.id SET todo_date = ?, todo_title = ?, todo_description = ? WHERE todo_list_user_data.id = ? AND users.log_in_Status = 1`, [date, title, description, recordId]);
 
         return { rowModificationInfo: result };
     } catch (err) {
@@ -127,7 +188,7 @@ export async function deleteTodoRecord(recordId) {
 
     // if log_in_status is 1 then delete the requested record of todo_list_user_data table by id field
     try {
-        const [result] = await pool.query(`DELETE todo_list_user_data FROM todo_list_user_data JOIN users on todo_list_user_data.user_id = users.id WHERE todo_list_user_data.id = ${recordId} AND users.log_in_Status = 1`);
+        const [result] = await pool.query(`DELETE todo_list_user_data FROM todo_list_user_data JOIN users on todo_list_user_data.user_id = users.id WHERE todo_list_user_data.id = ? AND users.log_in_Status = 1`, [recordId]);
 
         return { rowDeletionInfo: result };
     } catch (err) {
