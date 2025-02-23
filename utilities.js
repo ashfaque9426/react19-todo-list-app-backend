@@ -11,8 +11,24 @@ async function hashPassword(password) {
     return hashedPassword;
 }
 
+async function checkPassword(inputPassword, storedHash) {
+    try {
+        const isMatch = await bcrypt.compare(inputPassword, storedHash);
+        if (isMatch) {
+            console.log('Password is correct ✅');
+        } else {
+            console.log('Incorrect password ❌');
+        }
+        return isMatch;
+    } catch (error) {
+        console.error('Error comparing password:', error);
+        return false;
+    }
+}
+
 // login and register
 export async function register(userName, userEmail, userPassword, recoveryStr) {
+    // safeguard cheking all the parameters
     if (!userName || !userEmail || !userPassword || !recoveryStr) {
         return { errMsg: "The parameter value for each userName, userEmail, userPassword, recoveryStr are required." };
     }
@@ -37,7 +53,7 @@ export async function register(userName, userEmail, userPassword, recoveryStr) {
         const [doesUserExist] = await pool.query(`SELECT * FROM users WHERE user_name = ? AND user_email = ?`, [userName, userEmail]);
 
         if (doesUserExist.length > 0) {
-            return { errMsg: "User record already existed in the database so you can't be able to register with an existing record" };
+            return { errMsg: "User record already exists in the database so you can't be able to register with an existing record" };
         }
 
         // if not create the user and update the record then provide user the user secret along with other user credential information.
@@ -55,7 +71,7 @@ export async function register(userName, userEmail, userPassword, recoveryStr) {
 
             return { userData: { userId: result.insertId, userEmail: userEmail, userName: userName, userSecret: secret } };
         } else {
-            return { errMsg: 'Something went wrong while trying to create user record. Please try again later.' }
+            return { errMsg: 'Something went wrong while trying to create user record. Please try again later.' };
         }
     } catch (err) {
         // if error occures ahen provide the error message to the user console and return user the error message.
@@ -67,16 +83,112 @@ export async function register(userName, userEmail, userPassword, recoveryStr) {
 
 // update password
 export async function updatePassword(userEmail, newPassword, recoveryStr) {
+    // safeguard cheking all the parameters
+    if (!userEmail || !newPassword || !recoveryStr) {
+        return { errMsg: "The parameter value for each userName, userEmail, newPassword, recoveryStr are required." };
+    }
+
     // get the id, password and recovery string by user email from users table
-    // if recovery string matches then hash the password and update hashed_pass field by id field
+    try {
+        // if existed return an error message user already existed
+        const [doesUserExist] = await pool.query(`SELECT * FROM users WHERE user_email = ?`, [userEmail]);
+
+        if (doesUserExist.length === 0) {
+            return { errMsg: "User does not exist in the database so you can't be able to update the password for unregistered user." };
+        }
+
+        // if recovery string does not match with hashes password or user is logged in still then return error message
+        if (doesUserExist[0].recovery_str !== recoveryStr) {
+            return { errMsg: 'Your recovery string does not match with the saved record field. Please make sure that you are providing recovery string correctly.' };
+        } else if (doesUserExist[0].log_in_Status === 1) {
+            return { errMsg: 'You can not update the password while you are logged in. please log out first.' };
+        }
+
+        // update the new hashed password tot the proper field in the database
+        const newHashedPassword = await hashPassword(newPassword);
+
+        const [fieldUpdateData] = await pool.query(`UPDATE users SET hashed_pass = ? WHERE user_email = ?`, [newHashedPassword, userEmail]);
+
+        if (fieldUpdateData?.affectedRows > 0 && fieldUpdateData?.changedRows > 0) {
+            return { succMsg: 'Password updated successfully to the database field. Now you can log in using the new password.' };
+        } else {
+            return { errMsg: 'Something went wrong while updating the password. Please try again.' };
+        }
+    } catch (err) {
+        console.error("Database error:", err.message);
+        return { errMsg: err.message };
+    }
 }
 
 // login
-export async function login(userEmail, hashedPass) {
-    // get the user data from users table by user_email
-    // if login log_in_Status is 1 then return the message user already logged in
-    // if hashed password matches then change log_in_Status is to 1 and give the user user USER_LOGIN_SECRET
+export async function login(userEmail, userPassword) {
+    // safeguard cheking all the parameters
+    if (!userEmail || !userPassword) {
+        return { errMsg: "The parameter value for each userName, userEmail, userPassword, recoveryStr are required." };
+    }
 
+    try {
+        // get the user data from users table by user_email or if login log_in_Status is 1 then return the message user already logged in
+        const [doesUserExist] = await pool.query(`SELECT * FROM users WHERE user_email = ?`, [userEmail]);
+
+        if (doesUserExist.length === 0) {
+            return { errMsg: "User record does not exist in the database." };
+        } else if (doesUserExist[0]?.log_in_Status === 1) {
+            return { errMsg: "User already logged in." };
+        }
+
+        // if hashed password matches then change log_in_Status is to 1 and give the user user USER_LOGIN_SECRET else send error message
+        const passwordMatched = await checkPassword(userPassword, doesUserExist[0].hashed_pass);
+
+        if (passwordMatched) {
+            const payload = {
+                userId: doesUserExist[0].id,
+                userName: doesUserExist[0].user_name,
+                userEmail: userEmail,
+            };
+            const secret = jwt.sign(payload, process.env.USER_LOGIN_SECRET, { expiresIn: '1h' });
+
+            return { userData: { userId: doesUserExist[0].id, userEmail: userEmail, userName: doesUserExist[0].user_name, userSecret: secret } };
+        } else {
+            return { errMsg: 'User password does not match. Please make sure you are providing the user email and password correctly first.' };
+        }
+    } catch (err) {
+        console.error("Database error:", err.message);
+        return { errMsg: err.message };
+    }
+}
+
+// logout
+export async function logout(userEmail) {
+    // param check
+    if(!userEmail) {
+        return { errMsg: "The parameter value for userEmail is required." };
+    }
+
+    try {
+        // fetch the user data from database
+        const [doesUserExist] = await pool.query(`SELECT log_in_Status FROM users WHERE user_email = ?`, [userEmail]);
+
+        // if user not found or logged out already then retrun the error message
+        if (doesUserExist.length === 0) {
+            return { errMsg: "The user you are trying to log out does not exist in the database." };
+        } else if (doesUserExist[0].log_in_Status === 0) {
+            return { errMsg: "The user you are trying to log out is already logged out from his account." };
+        }
+
+        // now update the login status to the database.
+        const [updateResult] = await pool.query(`UPDATE users SET log_in_Status = 0 WHERE user_email = ?`, [userEmail]);
+
+        // if successfully updated the logged out field in the database then return the success message else the error message.
+        if (updateResult?.affectedRows > 0 && updateResult?.changedRows > 0) {
+            return { succMsg: "User logged out successfully." };
+        } else {
+            return { errMsg: "Something went wrong when trying to log out the user. Please try again." };
+        }
+    } catch (err) {
+        console.error("Database error:", err.message);
+        return { errMsg: err.message };
+    }
 }
 
 // get todo list record for a user
@@ -172,9 +284,13 @@ export async function modifyTodoRecord(date, title, description, recordId) {
 
     // if log_in_status is 1 then modify the current record of todo_list_user_data table by id field
     try {
-        const [result] = await pool.query(`UPDATE todo_list_user_data JOIN users ON todo_list_user_data.user_id = users.id SET todo_date = ?, todo_title = ?, todo_description = ? WHERE todo_list_user_data.id = ? AND users.log_in_Status = 1`, [date, title, description, recordId]);
+        const [updateResult] = await pool.query(`UPDATE todo_list_user_data JOIN users ON todo_list_user_data.user_id = users.id SET todo_date = ?, todo_title = ?, todo_description = ? WHERE todo_list_user_data.id = ? AND users.log_in_Status = 1`, [date, title, description, recordId]);
 
-        return { rowModificationInfo: result };
+        if (updateResult?.affectedRows > 0 && updateResult?.changedRows > 0) {
+            return { succMsg: "Your todo list record updated successfully in the database." }
+        } else {
+            return { errMsg: "Something went wrong while trying to update the database record. Please try again." };
+        }
     } catch (err) {
         console.error("Database error:", err.message);
         return { errMsg: err.message };
