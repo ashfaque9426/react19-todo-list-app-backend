@@ -215,7 +215,7 @@ export async function getFilteredTodoList(userId, date = "", title = "") {
     if (isNaN(userId)) return { errMsg: "User Id parameter value as a number required." };
 
     // check only date or title parameter value is available as string and if date is available does it meet the regex format /^\d{4}-\d{2}-\d{2}/ if any of the bellow condition failed then return the error message
-    if ((!date && !title) || (date && title)) return { errMsg: "Only date or title parameter value is required as string." };
+    if ((!date && !title) || (date && title)) return { errMsg: "Only one, date or title parameter value is required as string." };
     else if ((date && typeof date !== 'string') || (title && typeof title !== 'string')) return { errMsg: "date and time parameter values are required as strings." };
     else if (date && !date.match(/^\d{4}-\d{2}-\d{2}/)) return { errMsg: "Date parameter value does not match the format YYYY-MM-DD" };
 
@@ -232,6 +232,9 @@ FROM todo_list_user_data JOIN users ON todo_list_user_data.user_id = users.id `;
     } else if (title) {
         queryStr += `WHERE todo_list_user_data.todo_title = ? AND users.log_in_Status = 1`;
         params.push(title);
+    } else {
+        queryStr += `WHERE todo_list_user_data.user_id = ? AND users.log_in_Status = 1`;
+        params.push(userId);
     }
 
     // try to query to the database if get the result then return the value or return an error message

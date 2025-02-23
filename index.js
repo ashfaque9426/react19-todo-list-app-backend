@@ -10,7 +10,10 @@ dotenv.config();
 
 // import cors middleware for allow resource sharing to a different domain.
 import cors from 'cors';
-import { login, logout, processErrStr, register, updatePassword } from './utilities.js';
+
+// import custom middleware and utility functions and other imports
+import { getFilteredTodoList, login, logout, processErrStr, register, updatePassword } from './utilities.js';
+import verifyJWT from './custom-middleware.js';
 // apply cors middleware to enable cors origin requests.
 app.use(cors());
 
@@ -81,7 +84,7 @@ app.patch('/update-password', async (req, res) => {
         }
 
         // if unexpected error occures.
-        return res.status(500).json({ errMsg: "Unexpected error during registration." });
+        return res.status(500).json({ errMsg: "Unexpected error occured during updating password." });
     } catch (err) {
         // if any error message occured after calling the during registration process then print the error message to the console and send the message to the client with status code 500
         console.error("Password Update error:", err);
@@ -114,7 +117,7 @@ app.patch('/user-login', async (req, res) => {
         }
 
         // if unexpected error occures.
-        return res.status(500).json({ errMsg: "Unexpected error during registration." });
+        return res.status(500).json({ errMsg: "Unexpected error occured during user login." });
     } catch (err) {
         console.error("User Login error:", err);
         return res.status(500).json({ errMsg: "Unexpected Server error occured during user login process. Please try again later." });
@@ -146,10 +149,62 @@ app.patch('/user-logout', async (req, res) => {
         }
 
         // if unexpected error occures.
-        return res.status(500).json({ errMsg: "Unexpected error during registration." });
+        return res.status(500).json({ errMsg: "Unexpected error occured during logout." });
     } catch (err) {
         console.error("User logout error:", err);
         return res.status(500).json({ errMsg: "Unexpected Server error occured during user logout process. Please try again later." });
+    }
+});
+
+// get todo records from database
+app.get('/get-todo-records', verifyJWT, async (req, res) => {
+    try {
+        // store the value for user email, date, title
+        const userId = req.query.userId;
+        const date = req.query.date;
+        const title = req.query.title;
+
+        // if user id is not available
+        if (!userId) {
+            return res.status(400).json({ errMsg: "User id parameter value is required." });
+        }
+
+        // initilialize empty returned value variable for later use case.
+        let returnedValue;
+
+        // if date is available fetch by date or if title is available fetch be titme else fetch all data that matches user id.
+        if (date) {
+            returnedValue = await getFilteredTodoList(userId, date, "");
+        } else if (title) {
+            returnedValue = await getFilteredTodoList(userId, "", title);
+        } else {
+            returnedValue = await getFilteredTodoList(userId, "", "");
+        }
+
+        // if unexpected error occures.
+        if (!returnedValue) {
+            return res.status(500).json({ errMsg: "Unexpected server error occured while tried to fetch user requested data. Please try again later." });
+        }
+
+        // destructure dataArr and errMsg from returened value.
+        const { dataArr, errMsg } = returnedValue;
+
+        // if error message occured send errMsg to client
+        if (errMsg) {
+            return processErrStr(res, errMsg, "required", 400);
+        }
+
+        // if data array of requrested data available send that to client
+        if (dataArr) {
+            return res.status(200).json({ dataArr });
+        }
+
+        // if some unexpected error occured later send user the bellow error message.
+        return res.status(500).json({ errMsg: "Unexpected error occured during getting user data. Please try again later." });
+
+    } catch (err) {
+        console.error("Fetching user data error error:", err);
+        return res.status(500).json({ errMsg: "Unexpected Server error occured during the fetch process of requested user data. Please try again later." });
     }
 });
 
