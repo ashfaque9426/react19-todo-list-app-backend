@@ -253,9 +253,9 @@ FROM todo_list_user_data JOIN users ON todo_list_user_data.user_id = users.id `;
 // add totolist record
 export async function addTodoRecord(date, title, description, userId) {
     // check all parameter values otherwise return an error message
-    if (!date || !title || !description || !userId) return { errMsg: "date<iso date str.split[0]>, title<str>, descrition<str>, userId<num> all parameter values are required." };
+    if (typeof date !== 'string' || typeof title !== 'string' || typeof description !== 'string') return { errMsg: "date<iso date str.split[0]>, title<str>, descrition<str> parameter values are required." };
+    if (typeof date === 'string' && !date.match(/^\d{4}-\d{2}-\d{2}/)) return { errMsg: "Date parameter value does not match the format YYYY-MM-DD, only YYYY-MM-DD date format required as a string." };
     if (isNaN(userId)) return { errMsg: "userId parameter value as a number required." };
-    if (!date.match(/^\d{4}-\d{2}-\d{2}/)) return { errMsg: "Date parameter value does not match the format YYYY-MM-DD, only YYYY-MM-DD date format required as a string." };
 
     // if log_in_status is 1 then add the record to todo_list_user_data table and if table is not created already create the table first
     try {
@@ -286,12 +286,29 @@ export async function addTodoRecord(date, title, description, userId) {
     }
 }
 
+// get todo record
+export async function getTodoRecord(recordId) {
+    // check all param values
+    if (isNaN(recordId)) {
+        return { errMsg: `recordId parameter value as a number is required.` };
+    }
+
+    // get the record and return it or return the error message
+    try {
+        const [rows] = await pool.query(`SELECT * FROM todo_list_user_data JOIN users ON todo_list_user_data.user_id = users.id WHERE todo_list_user_data.id = ? AND users.log_in_Status = 1`, [recordId]);
+        return { recordData: rows[0] };
+    } catch (err) {
+        console.error("Database error:", err.message);
+        return { errMsg: err.message };
+    }
+}
+
 // modify todoList record
 export async function modifyTodoRecord(date, title, description, recordId) {
     // check all parameter values otherwise return an error message
-    if (!date || !title || !description || !recordId) return { errMsg: "date<iso date str.split[0]>, title<str>, descrition<str>, recordId<num> all parameter values are quired." };
-    else if (!date.match(/^\d{4}-\d{2}-\d{2}/)) return { errMsg: "Date parameter value does not match the format YYYY-MM-DD" };
-    else if (isNaN(recordId)) return { errMsg: "recordId parameter value as a number required." };
+    if (typeof date !== 'string' || typeof title !== 'string' || typeof description !== 'string') return { errMsg: "date<iso date str.split[0]>, title<str>, descrition<str> parameter values are required." };
+    if (typeof date === 'string' && !date.match(/^\d{4}-\d{2}-\d{2}/)) return { errMsg: "Date parameter value does not match the format YYYY-MM-DD" };
+    if (isNaN(recordId)) return { errMsg: "recordId parameter value as a number required." };
 
     // if log_in_status is 1 then modify the current record of todo_list_user_data table by id field
     try {
@@ -317,7 +334,11 @@ export async function deleteTodoRecord(recordId) {
     try {
         const [result] = await pool.query(`DELETE todo_list_user_data FROM todo_list_user_data JOIN users on todo_list_user_data.user_id = users.id WHERE todo_list_user_data.id = ? AND users.log_in_Status = 1`, [recordId]);
 
-        return { rowDeletionInfo: result };
+        if (result?.affectedRows > 0) {
+            return { succMsg: 'User record deleted successfully.' }
+        }
+
+        return { errMsg: "Something went wrong while deleting todolist record from the database. Please try again later." };
     } catch (err) {
         console.error("Database error:", err.message);
         return { errMsg: err.message };

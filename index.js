@@ -12,7 +12,7 @@ dotenv.config();
 import cors from 'cors';
 
 // import custom middleware and utility functions and other imports
-import { addTodoRecord, getFilteredTodoList, login, logout, processErrStr, register, updatePassword } from './utilities.js';
+import { addTodoRecord, deleteTodoRecord, getFilteredTodoList, getTodoRecord, login, logout, modifyTodoRecord, processErrStr, register, updatePassword } from './utilities.js';
 import verifyJWT from './custom-middleware.js';
 // apply cors middleware to enable cors origin requests.
 app.use(cors());
@@ -208,6 +208,7 @@ app.get('/get-todo-records', verifyJWT, async (req, res) => {
     }
 });
 
+// add todo record api
 app.post('/add-todo-record', verifyJWT, async (req, res) => {
     try {
         // destructuring required parameter from req(request).body object
@@ -235,7 +236,98 @@ app.post('/add-todo-record', verifyJWT, async (req, res) => {
         return res.status(500).json({ errMsg: "Unexpected error occured during addding user record. Please try again later." });
     } catch (err) {
         console.error("Error while adding todo record:", err);
-        return res.status(500).json({ errMsg: "Unexpected Server error occured during the add todo record process. Please try again later." });
+        return res.status(500).json({ errMsg: "Unexpected Server error occured during adding todo record process. Please try again later." });
+    }
+});
+
+// get todo record
+app.get('/get-todo-record', verifyJWT, async (req, res) => {
+    try {
+        // initial data check
+        const recordId = req.query.recordId;
+
+        if (!recordId) {
+            return res.status(400).json({ errMsg: "Record id paramater value is required for getting the specific record data." });
+        }
+
+        // get the record data else return error message
+        const { recordData, errMsg } = await getTodoRecord(recordId);
+
+        if (errMsg) {
+            return processErrStr(res, errMsg, "required", 400);
+        }
+
+        if (recordData) {
+            return res.status(200).json({ recordId });
+        }
+
+        return res.status(500).json({ errMsg: "Unexpected error occured during getting user record. Please try again later." });
+    } catch (err) {
+        console.error("Error while adding todo record:", err);
+        return res.status(500).json({ errMsg: "Unexpected Server error occured during adding todo record process. Please try again later." });
+    }
+});
+
+// modify todo record api
+app.patch('/modify-todo-record', verifyJWT, async (req, res) => {
+    try {
+        // destructure required values from req.body
+        const { date, title, description, recordId } = req.body;
+
+        // initial value check
+        if (!date || !title || !description || !recordId) {
+            return res.status(400).json({ errMsg: "All field params (date, title, description, recordId) are required." });
+        }
+
+        // add the record to the database.
+        const { succMsg, errMsg } = await modifyTodoRecord(date, title, description, recordId);
+
+        // if error message returned from addTodoRecord then return the error message.
+        if (errMsg) {
+            return processErrStr(res, errMsg, "required", 400);
+        }
+
+        // if success message returned from addTodoRecord return the success message.
+        if (succMsg) {
+            return res.status(201).json({ succMsg });
+        }
+
+        // if some unexpected error occured later send user the bellow error message.
+        return res.status(500).json({ errMsg: "Unexpected error occured during modifying the user record. Please try again later." });
+    } catch (err) {
+        console.error("Error while modifying todo record:", err);
+        return res.status(500).json({ errMsg: "Unexpected Server error occured during modifying todo record process. Please try again later." });
+    }
+});
+
+// delete todo record api
+app.delete('/delete-todo-record/:recordId', verifyJWT, async (req, res) => {
+    try {
+        // destructuring and initial check
+        const { recordId } = req.params;
+
+        if (!recordId) {
+            return res.status(400).json({ errMsg: "Record id paramater value is required for getting the specific record data." });
+        }
+
+        // delete the record data
+        const { succMsg, errMsg } = await deleteTodoRecord(recordId);
+
+        // if error occured return the error message.
+        if (errMsg) {
+            return processErrStr(res, errMsg, "must be in number type", 400);
+        }
+
+        // if successfully deleted the record then return the success message
+        if (succMsg) {
+            return res.status(201).json({ succMsg });
+        }
+
+        // if some unexpected error occured later send user the bellow error message.
+        return res.status(500).json({ errMsg: "Unexpected error occured during deleting the user record. Please try again later." });
+    } catch (err) {
+        console.error("Error while deleting todo record:", err);
+        return res.status(500).json({ errMsg: "Unexpected Server error occured during deleting todo record process. Please try again later." });
     }
 });
 
