@@ -12,7 +12,7 @@ dotenv.config();
 import cors from 'cors';
 
 // import custom middleware and utility functions and other imports
-import { getFilteredTodoList, login, logout, processErrStr, register, updatePassword } from './utilities.js';
+import { addTodoRecord, getFilteredTodoList, login, logout, processErrStr, register, updatePassword } from './utilities.js';
 import verifyJWT from './custom-middleware.js';
 // apply cors middleware to enable cors origin requests.
 app.use(cors());
@@ -34,7 +34,7 @@ app.post('/register-user', async (req, res) => {
 
         // if any destructured variable is missing send error message
         if (!userName || !userEmail || !userPassword || !recoveryStr) {
-            return res.status(400).json({ errMsg: "All fields (userName, userEmail, userPassword, recoveryStr) are required." });
+            return res.status(400).json({ errMsg: "All field params (userName, userEmail, userPassword, recoveryStr) are required." });
         }
 
         //  destructure userData and errMsg properties from the retrun value ofject of register function
@@ -203,8 +203,39 @@ app.get('/get-todo-records', verifyJWT, async (req, res) => {
         return res.status(500).json({ errMsg: "Unexpected error occured during getting user data. Please try again later." });
 
     } catch (err) {
-        console.error("Fetching user data error error:", err);
+        console.error("Fetching user data error:", err);
         return res.status(500).json({ errMsg: "Unexpected Server error occured during the fetch process of requested user data. Please try again later." });
+    }
+});
+
+app.post('/add-todo-record', verifyJWT, async (req, res) => {
+    try {
+        // destructuring required parameter from req(request).body object
+        const { date, title, description, userId } = req.body;
+
+        // initial value check for null or undefined
+        if (!date || !title || !description || !userId) {
+            return res.status(400).json({ errMsg: "All field params (date, title, description, userId) are required." });
+        }
+
+        // add the record to the database.
+        const { succMsg, errMsg } = await addTodoRecord(date, title, description, userId);
+
+        // if error message returned from addTodoRecord then return the error message.
+        if (errMsg) {
+            return processErrStr(res, errMsg, "required", 400);
+        }
+
+        // if success message returned from addTodoRecord return the success message.
+        if (succMsg) {
+            return res.status(201).json({ succMsg });
+        }
+
+        // if some unexpected error occured later send user the bellow error message.
+        return res.status(500).json({ errMsg: "Unexpected error occured during addding user record. Please try again later." });
+    } catch (err) {
+        console.error("Error while adding todo record:", err);
+        return res.status(500).json({ errMsg: "Unexpected Server error occured during the add todo record process. Please try again later." });
     }
 });
 

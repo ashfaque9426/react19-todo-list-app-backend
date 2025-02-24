@@ -137,15 +137,18 @@ export async function login(userEmail, userPassword) {
             return { errMsg: "User already logged in." };
         }
 
-        // if hashed password matches then change log_in_Status is to 1 and give the user user USER_LOGIN_SECRET else send error message
+        // if hashed password matches then change log_in_Status is to 1 and give the user user USER_LOGIN_SECRET and update the log in status in the database, else send error message
         const passwordMatched = await checkPassword(userPassword, doesUserExist[0].hashed_pass);
 
         if (passwordMatched) {
+            await pool.query(`UPDATE users SET log_in_Status = 1 WHERE id = ?`, [doesUserExist[0].id]);
+
             const payload = {
                 userId: doesUserExist[0].id,
                 userName: doesUserExist[0].user_name,
                 userEmail: userEmail,
             };
+
             const secret = jwt.sign(payload, process.env.USER_LOGIN_SECRET, { expiresIn: '1h' });
 
             return { userData: { userId: doesUserExist[0].id, userEmail: userEmail, userName: doesUserExist[0].user_name, userSecret: secret } };
@@ -215,9 +218,9 @@ export async function getFilteredTodoList(userId, date = "", title = "") {
     if (isNaN(userId)) return { errMsg: "User Id parameter value as a number required." };
 
     // check only date or title parameter value is available as string and if date is available does it meet the regex format /^\d{4}-\d{2}-\d{2}/ if any of the bellow condition failed then return the error message
-    if ((!date && !title) || (date && title)) return { errMsg: "Only one, date or title parameter value is required as string." };
-    else if ((date && typeof date !== 'string') || (title && typeof title !== 'string')) return { errMsg: "date and time parameter values are required as strings." };
-    else if (date && !date.match(/^\d{4}-\d{2}-\d{2}/)) return { errMsg: "Date parameter value does not match the format YYYY-MM-DD" };
+    if (date && title) return { errMsg: "Only one, date or title parameter value is required as string, not both at once." };
+    else if ((date && typeof date !== 'string') || (title && typeof title !== 'string')) return { errMsg: `${(date ? 'date' : 'title')} parameter values is required as strings.` };
+    if (date && !date.match(/^\d{4}-\d{2}-\d{2}/)) return { errMsg: "Date parameter value does not match the format YYYY-MM-DD" };
 
     let queryStr = `SELECT todo_list_user_data.id as 'ID', todo_list_user_data.todo_date as 'Date', todo_list_user_data.todo_title as 'Title', todo_description as 'Description', user_id as 'UserID'
 FROM todo_list_user_data JOIN users ON todo_list_user_data.user_id = users.id `;
@@ -250,11 +253,11 @@ FROM todo_list_user_data JOIN users ON todo_list_user_data.user_id = users.id `;
 // add totolist record
 export async function addTodoRecord(date, title, description, userId) {
     // check all parameter values otherwise return an error message
-    if (!date || !title || !description || !userId) return { errMsg: "date<iso date str.split[0]>, title<str>, descrition<str>, userId<num> all parameter values are quired." };
-    else if (!date.match(/^\d{4}-\d{2}-\d{2}/)) return { errMsg: "Date parameter value does not match the format YYYY-MM-DD" };
-    else if (isNaN(userId)) return { errMsg: "userId parameter value as a number required." };
+    if (!date || !title || !description || !userId) return { errMsg: "date<iso date str.split[0]>, title<str>, descrition<str>, userId<num> all parameter values are required." };
+    if (isNaN(userId)) return { errMsg: "userId parameter value as a number required." };
+    if (!date.match(/^\d{4}-\d{2}-\d{2}/)) return { errMsg: "Date parameter value does not match the format YYYY-MM-DD, only YYYY-MM-DD date format required as a string." };
 
-    // if log_in_status is 1 then add the record to todo_list_user_data table
+    // if log_in_status is 1 then add the record to todo_list_user_data table and if table is not created already create the table first
     try {
         const createTableQuery = `
                 CREATE TABLE IF NOT EXISTS todo_list_user_data (
@@ -271,7 +274,12 @@ export async function addTodoRecord(date, title, description, userId) {
         await pool.query(createTableQuery);
 
         const [result] = await pool.query(`INSERT INTO todo_list_user_data (todo_date, todo_title, todo_description, user_id) SELECT ?, ?, ?, id FROM users WHERE id = ? AND log_in_Status = 1`, [date, title, description, userId]);
-        return { insertionData: result }
+
+        if (result.insertId && result.affectedRows > 0) {
+            return { succMsg: "Todolist record added to the database successfully." }
+        }
+        
+        return { errMsg: "Something went wrong while adding todolist record to the database. Please try again later." };
     } catch (err) {
         console.error("Database error:", err.message);
         return { errMsg: err.message };
