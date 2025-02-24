@@ -42,7 +42,7 @@ app.post('/register-user', async (req, res) => {
 
         // if user already exists then set a status code 409 otherwise 500 with the error message.
         if (errMsg) {
-            return processErrStr(res, errMsg, "User already exists", 409);
+            return processErrStr(res, errMsg);
         }
 
         // if userData is available then send the userData
@@ -75,7 +75,7 @@ app.patch('/update-password', async (req, res) => {
 
         // if error message found
         if (errMsg) {
-            return processErrStr(res, errMsg, "User does not exist", 404);
+            return processErrStr(res, errMsg);
         }
 
         // if success message is returned then send the succes message.
@@ -108,7 +108,7 @@ app.patch('/user-login', async (req, res) => {
 
         // if errMsg found
         if (errMsg) {
-            return processErrStr(res, errMsg, "password does not match", 401);
+            return processErrStr(res, errMsg);
         }
 
         // if successfully logged in then retrun user credential data to client
@@ -140,7 +140,7 @@ app.patch('/user-logout', async (req, res) => {
 
         // if error occured during user logout process
         if (errMsg) {
-            return processErrStr(res, errMsg, "does not exist", 404);
+            return processErrStr(res, errMsg);
         }
 
         // if user successfully logged out
@@ -191,7 +191,7 @@ app.get('/get-todo-records', verifyJWT, async (req, res) => {
 
         // if error message occured send errMsg to client
         if (errMsg) {
-            return processErrStr(res, errMsg, "required", 400);
+            return processErrStr(res, errMsg);
         }
 
         // if data array of requrested data available send that to client
@@ -224,7 +224,7 @@ app.post('/add-todo-record', verifyJWT, async (req, res) => {
 
         // if error message returned from addTodoRecord then return the error message.
         if (errMsg) {
-            return processErrStr(res, errMsg, "required", 400);
+            return processErrStr(res, errMsg);
         }
 
         // if success message returned from addTodoRecord return the success message.
@@ -254,7 +254,7 @@ app.get('/get-todo-record', verifyJWT, async (req, res) => {
         const { recordData, errMsg } = await getTodoRecord(recordId);
 
         if (errMsg) {
-            return processErrStr(res, errMsg, "required", 400);
+            return processErrStr(res, errMsg);
         }
 
         if (recordData) {
@@ -284,7 +284,7 @@ app.patch('/modify-todo-record', verifyJWT, async (req, res) => {
 
         // if error message returned from addTodoRecord then return the error message.
         if (errMsg) {
-            return processErrStr(res, errMsg, "required", 400);
+            return processErrStr(res, errMsg);
         }
 
         // if success message returned from addTodoRecord return the success message.
@@ -315,7 +315,7 @@ app.delete('/delete-todo-record/:recordId', verifyJWT, async (req, res) => {
 
         // if error occured return the error message.
         if (errMsg) {
-            return processErrStr(res, errMsg, "must be in number type", 400);
+            return processErrStr(res, errMsg);
         }
 
         // if successfully deleted the record then return the success message

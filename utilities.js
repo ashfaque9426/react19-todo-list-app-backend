@@ -347,10 +347,21 @@ export async function deleteTodoRecord(recordId) {
 }
 
 // error message
-export async function processErrStr(res, errMsg, msgStr, statusCodeOne) {
-    if (typeof errMsg === "string" && errMsg.includes(msgStr)) {
-        return res.status(statusCodeOne).json({ errMsg });
-    } else {
-        return res.status(500).json({ errMsg });
+export async function processErrStr(res, errMsg) {
+    // param type check
+    if (!res || (typeof errMsg !== "string")) return res.status(400).json({ errMsg: 'To process error messages response object as res parameter value and type string is required as errMsg parameter value.' });
+
+    // default status code
+    let statusCode = 500;
+
+    // change if errMsg includes any of the specified string
+    if (errMsg.includes('required')) {
+        statusCode = 400;
     }
+    else if (errMsg.includes('already exists') || errMsg.includes('does not match') || errMsg.includes('does not exist') || errMsg.includes('log out first') || errMsg.includes('already logged in') || errMsg.includes('already logged out')) {
+        statusCode = 409;
+    }
+
+    // return the err massege with proper status code through response object
+    return res.status(statusCode).json({ errMsg });
 }
