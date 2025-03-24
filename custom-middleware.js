@@ -18,7 +18,14 @@ const verifyJWT = (req, res, next) => {
     // now get the token from tokenParts array and verify the token
     const token = tokenParts[1];
     jwt.verify(token, process.env.USER_LOGIN_SECRET, function (err, decoded) {
-        if (err) return res.status(403).send({ errMsg: "Access Denied for authentication issue" });
+        if (err) {
+            if (err.name === "TokenExpiredError") {
+                return res.status(401).json({ error: "Token has expired." });
+            } else {
+                return res.status(401).json({ error: "Invalid token." });
+            }
+        }
+        
         req.decoded = decoded;
         next();
     });
