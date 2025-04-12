@@ -27,7 +27,7 @@ const port = process.env.PORT || 5000;
 app.get('/', (req, res) => res.send("Todo List Backend Server is running now."));
 
 // register user to the mysql database express.js api.
-app.post('/register-user', async (req, res) => {
+app.post('/api/register-user', async (req, res) => {
     try {
         // destructure the properties from req.body object
         const { userName, userEmail, userPassword, recoveryStr } = req.body;
@@ -60,7 +60,7 @@ app.post('/register-user', async (req, res) => {
 });
 
 // update password api.
-app.patch('/update-password', async (req, res) => {
+app.patch('/api/update-password', async (req, res) => {
     try {
         // retirve the values
         const { userEmail, newPassword, recoveryStr }  = req.body;
@@ -93,7 +93,7 @@ app.patch('/update-password', async (req, res) => {
 });
 
 // user login api
-app.patch('/user-login', async (req, res) => {
+app.patch('/api/user-login', async (req, res) => {
     try {
         // retrive the values from req.body object
         const { userEmail, userPassword } = req.body;
@@ -125,7 +125,7 @@ app.patch('/user-login', async (req, res) => {
 });
 
 // user logout api
-app.patch('/user-logout', async (req, res) => {
+app.patch('/api/user-logout', async (req, res) => {
     try {
         // retrieve the user eamil
         const { userEmail } = req.body;
@@ -157,7 +157,7 @@ app.patch('/user-logout', async (req, res) => {
 });
 
 // get todo records from database
-app.get('/get-todo-records', verifyJWT, async (req, res) => {
+app.get('/api/get-todo-records', verifyJWT, async (req, res) => {
     try {
         // store the value for user email, date, title
         const userId = req.query.userId;
@@ -209,7 +209,7 @@ app.get('/get-todo-records', verifyJWT, async (req, res) => {
 });
 
 // add todo record api
-app.post('/add-todo-record', verifyJWT, async (req, res) => {
+app.post('/api/add-todo-record', verifyJWT, async (req, res) => {
     try {
         // destructuring required parameter from req(request).body object
         const { date, title, description, userId } = req.body;
@@ -241,7 +241,7 @@ app.post('/add-todo-record', verifyJWT, async (req, res) => {
 });
 
 // get todo record
-app.get('/get-todo-record', verifyJWT, async (req, res) => {
+app.get('/api/get-todo-record', verifyJWT, async (req, res) => {
     try {
         // initial data check
         const recordId = req.query.recordId;
@@ -269,7 +269,7 @@ app.get('/get-todo-record', verifyJWT, async (req, res) => {
 });
 
 // modify todo record api
-app.patch('/modify-todo-record', verifyJWT, async (req, res) => {
+app.patch('/api/modify-todo-record', verifyJWT, async (req, res) => {
     try {
         // destructure required values from req.body
         const { date, title, description, recordId } = req.body;
@@ -301,7 +301,7 @@ app.patch('/modify-todo-record', verifyJWT, async (req, res) => {
 });
 
 // delete todo record api
-app.delete('/delete-todo-record/:recordId', verifyJWT, async (req, res) => {
+app.delete('/api/delete-todo-record/:recordId', verifyJWT, async (req, res) => {
     try {
         // destructuring and initial check
         const { recordId } = req.params;
