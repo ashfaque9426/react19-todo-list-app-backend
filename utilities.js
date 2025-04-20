@@ -2,6 +2,7 @@ import pool from "./database.js";
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import dotenv from 'dotenv';
+import nodemailer from 'nodemailer';
 dotenv.config();
 
 // hash password function
@@ -27,10 +28,10 @@ async function checkPassword(inputPassword, storedHash) {
 }
 
 // login and register
-export async function register(userName, userEmail, userPassword, recoveryStr) {
+export async function register(userName, userEmail, userPassword) {
     // safeguard cheking all the parameters
-    if (!userName || !userEmail || !userPassword || !recoveryStr) {
-        return { errMsg: "The parameter value for each userName, userEmail, userPassword, recoveryStr are required." };
+    if (!userName || !userEmail || !userPassword) {
+        return { errMsg: "The parameter value for each userName, userEmail, userPassword are required." };
     }
 
     // check if user record existed in users table
@@ -41,8 +42,8 @@ export async function register(userName, userEmail, userPassword, recoveryStr) {
                     user_name VARCHAR(256) NOT NULL,
                     user_email VARCHAR(256) NOT NULL,
                     hashed_pass  VARCHAR(256) NOT NULL,
-                    recovery_str VARCHAR(256) NOT NULL,
-                    log_in_Status TINYINT(1) NOT NULL DEFAULT 0,
+                    log_in_Status BOOLEAN NOT NULL DEFAULT 0,
+                    email_varified BOOLEAN NOT NULL DEFAULT 0,
                     PRIMARY KEY (id)
                 );
             `;
@@ -59,17 +60,30 @@ export async function register(userName, userEmail, userPassword, recoveryStr) {
         // if not create the user and update the record then provide user the user secret along with other user credential information.
         const hashedPassword = await hashPassword(userPassword);
 
-        const [result] = await pool.query(`INSERT INTO users(user_name, user_email, hashed_pass, recovery_str, log_in_Status) VALUES (?, ?, ?, ?, ?)`, [userName, userEmail, hashedPassword, recoveryStr, 1]);
+        // insert the user record to the database
+        const [result] = await pool.query(`INSERT INTO users(user_name, user_email, hashed_pass) VALUES (?, ?, ?)`, [userName, userEmail, hashedPassword]);
 
+        // if user record is created successfully then send the verification email to the user email address and return the success message
         if (result.affectedRows > 0 && result?.insertId) {
-            const payload = {
-                userId: result.insertId,
-                userName: userName,
-                userEmail: userEmail,
-            };
-            const secret = jwt.sign(payload, process.env.USER_LOGIN_SECRET, { expiresIn: '1h' });
+            const token = jwt.sign({ email: userEmail }, process.env.APP_SECRET, { expiresIn: '1h' });
+            const verificationLink = `${process.env.SITE_DOMAIN}/api/verify-email?token=${token}`;
 
-            return { userData: { userId: result.insertId, userEmail: userEmail, userName: userName, userSecret: secret } };
+            const transporter = nodemailer.createTransport({
+                service: 'gmail',
+                auth: {
+                    user: process.env.APP_EMAIL,
+                    pass: process.env.APP_PASS,
+                },
+            });
+
+            await transporter.sendMail({
+                from: process.env.APP_EMAIL,
+                to: userEmail,
+                subject: "Verify Your Email For Todo List App",
+                html: `<p>Click <a href="${verificationLink}">here</a> to verify your email.</p>`
+            });
+
+            return { succMsg: `Verification mail has sent to user and User Record has been added to database successfully.` };
         } else {
             return { errMsg: 'Something went wrong while trying to create user record. Please try again later.' };
         }
@@ -78,36 +92,47 @@ export async function register(userName, userEmail, userPassword, recoveryStr) {
         console.error("Database error:", err.message);
         return { errMsg: err.message };
     }
+}
 
+export async function verifyEmail(token) {
+    try {
+        // decode the given token and get the email from it
+        const decoded = jwt.verify(token, process.env.APP_SECRET);
+        const email = decoded.email;
+
+        // update sql database column email_varified and mark the user as verified
+        const [result] = await pool.query(`UPDATE users SET email_varified = 1 WHERE user_email = ?`, [email]);
+
+        // if no rows were affected, it means the user was not found or already verified
+        if (result.affectedRows === 0) {
+            return { errMsg: "Update verification information failed. Please try again later." };
+        }
+
+        return { succMsg: 'Email verified successfully!' };
+    } catch (err) {
+        console.error("Invalid or expired token", err.message);
+        return { errMsg: err.message };
+    }
 }
 
 // update password
-export async function updatePassword(userEmail, newPassword, recoveryStr) {
-    // safeguard cheking all the parameters
-    if (!userEmail || !newPassword || !recoveryStr) {
-        return { errMsg: "The parameter value for each userName, userEmail, newPassword, recoveryStr are required." };
-    }
-
-    // get the id, password and recovery string by user email from users table
+export async function updatePassword(token, newPassword) {
     try {
+        const decoded = jwt.verify(token, process.env.APP_SECRETT);
+        const email = decoded.email;
         // if existed return an error message user already existed
-        const [doesUserExist] = await pool.query(`SELECT * FROM users WHERE user_email = ?`, [userEmail]);
+        const [doesUserExist] = await pool.query(`SELECT * FROM users WHERE user_email = ?`, [email]);
 
-        if (doesUserExist.length === 0) {
-            return { errMsg: "User does not exist in the database so you can't be able to update the password for unregistered user." };
-        }
-
-        // if recovery string does not match with hashes password or user is logged in still then return error message
-        if (doesUserExist[0].recovery_str !== recoveryStr) {
-            return { errMsg: 'Your recovery string does not match with the saved record field. Please make sure that you are providing recovery string correctly.' };
+        if (doesUserExist.length === 0 || doesUserExist[0].email_varified === 0) {
+            return { errMsg: doesUserExist.length === 0 ? "User does not exist in the database so you can't be able to update the password for unregistered user." : "User Email is not verified yet." };
         } else if (doesUserExist[0].log_in_Status === 1) {
-            return { errMsg: 'You can not update the password while you are logged in. please log out first.' };
+            return { errMsg: 'You can not update the password while you are still logged in. Please log out first to update password.' };
         }
 
         // update the new hashed password tot the proper field in the database
         const newHashedPassword = await hashPassword(newPassword);
 
-        const [fieldUpdateData] = await pool.query(`UPDATE users SET hashed_pass = ? WHERE user_email = ?`, [newHashedPassword, userEmail]);
+        const [fieldUpdateData] = await pool.query(`UPDATE users SET hashed_pass = ? WHERE user_email = ?`, [newHashedPassword, doesUserExist[0].user_email]);
 
         if (fieldUpdateData?.affectedRows > 0 && fieldUpdateData?.changedRows > 0) {
             return { succMsg: 'Password updated successfully to the database field. Now you can log in using the new password.' };
@@ -115,7 +140,7 @@ export async function updatePassword(userEmail, newPassword, recoveryStr) {
             return { errMsg: 'Something went wrong while updating the password. Please try again.' };
         }
     } catch (err) {
-        console.error("Database error:", err.message);
+        console.error("Database error while updating password:", err.message);
         return { errMsg: err.message };
     }
 }
@@ -133,8 +158,8 @@ export async function login(userEmail, userPassword) {
 
         if (doesUserExist.length === 0) {
             return { errMsg: "User record does not exist in the database." };
-        } else if (doesUserExist[0]?.log_in_Status === 1) {
-            return { errMsg: "User already logged in." };
+        } else if (doesUserExist[0]?.log_in_Status === 1 || doesUserExist[0]?.email_varified === 0) {
+            return { errMsg: doesUserExist[0]?.email_varified === 0 ? "User Email not verified yet." : "User already logged in." };
         }
 
         // if hashed password matches then change log_in_Status is to 1 and give the user user USER_LOGIN_SECRET and update the log in status in the database, else send error message
@@ -355,7 +380,7 @@ export async function processErrStr(res, errMsg) {
     let statusCode = 500;
 
     // change if errMsg includes any of the specified string
-    if (errMsg.includes('required')) {
+    if (errMsg.includes('required') || errMsg.includes('Invalid')) {
         statusCode = 400;
     }
     else if (errMsg.includes('already exists') || errMsg.includes('does not match') || errMsg.includes('does not exist') || errMsg.includes('log out first') || errMsg.includes('already logged in') || errMsg.includes('already logged out')) {

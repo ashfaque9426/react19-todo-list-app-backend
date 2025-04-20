@@ -12,7 +12,7 @@ dotenv.config();
 import cors from 'cors';
 
 // import custom middleware and utility functions and other imports
-import { addTodoRecord, deleteTodoRecord, getFilteredTodoList, getTodoRecord, login, logout, modifyTodoRecord, processErrStr, register, updatePassword } from './utilities.js';
+import { addTodoRecord, deleteTodoRecord, getFilteredTodoList, getTodoRecord, login, logout, modifyTodoRecord, processErrStr, register, updatePassword, verifyEmail } from './utilities.js';
 import verifyJWT from './custom-middleware.js';
 // apply cors middleware to enable cors origin requests.
 app.use(cors());
@@ -30,15 +30,15 @@ app.get('/', (req, res) => res.send("Todo List Backend Server is running now."))
 app.post('/api/register-user', async (req, res) => {
     try {
         // destructure the properties from req.body object
-        const { userName, userEmail, userPassword, recoveryStr } = req.body;
+        const { userName, userEmail, userPassword } = req.body;
 
         // if any destructured variable is missing send error message
         if (!userName || !userEmail || !userPassword || !recoveryStr) {
-            return res.status(400).json({ errMsg: "All field params (userName, userEmail, userPassword, recoveryStr) are required." });
+            return res.status(400).json({ errMsg: "All field params (userName, userEmail, userPassword) are required." });
         }
 
         //  destructure userData and errMsg properties from the retrun value ofject of register function
-        const { userData, errMsg } = await register(userName, userEmail, userPassword, recoveryStr);
+        const { succMsg, errMsg } = await register(userName, userEmail, userPassword);
 
         // if user already exists then set a status code 409 otherwise 500 with the error message.
         if (errMsg) {
@@ -46,8 +46,8 @@ app.post('/api/register-user', async (req, res) => {
         }
 
         // if userData is available then send the userData
-        if (userData) {
-            return res.status(201).json({ userData });
+        if (succMsg) {
+            return res.status(201).json({ succMsg });
         }
 
         // if anything unexpected happened and unable to get userdata and error message the send the bellow error message
@@ -59,19 +59,48 @@ app.post('/api/register-user', async (req, res) => {
     }
 });
 
+// verify user email api
+app.post('/api/verify-email', async (req, res) => {
+    try {
+        // get the token from query string
+        const token = req.query.token;
+
+        // check if token is available or not
+        if (!token) return res.status(400).send('JWT Token is Missing to verify email.');
+
+        // verify the token and get the success message or error message
+        const { succMsg, errMsg } = await verifyEmail(token);
+
+        // if error message found then send the error message to client
+        if (errMsg) {
+            return processErrStr(res, errMsg);
+        } else if (succMsg) {
+            // if success message found then send the success message to the client
+            return res.status(200).json({ succMsg });
+        }
+
+        // if any unexpected error occures.
+        return res.status(500).json({ errMsg: "Unexpected error during Updating database during email verification. Please try again later" });
+    } catch (err) {
+        // if any error message occured after calling the during registration process then print the error message to the console and send the message to the client with status code 500
+        console.error("Registration error:", err);
+        return res.status(500).json({ errMsg: "Unexpected Server error occured during user registration process. Please try again later." });
+    }
+});
+
 // update password api.
 app.patch('/api/update-password', async (req, res) => {
     try {
         // retirve the values
-        const { userEmail, newPassword, recoveryStr }  = req.body;
+        const { token, newPassword }  = req.body;
 
         // check all values
-        if (!userEmail || !newPassword || !recoveryStr) {
-            return res.status(400).json({ errMsg: "All fields (userName, userEmail, newPassword, recoveryStr) are required." });
+        if (!token || !newPassword) {
+            return res.status(400).json({ errMsg: "All fields (JWT Token, newPassword) values are required." });
         }
 
         // update the password.
-        const { succMsg, errMsg } = await updatePassword(userEmail, newPassword, recoveryStr);
+        const { succMsg, errMsg } = await updatePassword(token, newPassword);
 
         // if error message found
         if (errMsg) {
