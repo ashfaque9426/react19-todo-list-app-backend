@@ -425,7 +425,7 @@ export async function deleteTodoRecord(recordId) {
 }
 
 // error message
-export async function processErrStr(res, errMsg) {
+export async function processErrStr(res, errMsg, nullType) {
     // param type check
     if (!res || (typeof errMsg !== "string")) return res.status(400).json({ errMsg: 'To process error messages response object as res parameter value and type string is required as errMsg parameter value.' });
 
@@ -441,5 +441,5 @@ export async function processErrStr(res, errMsg) {
     }
 
     // return the err massege with proper status code through response object
-    return res.status(statusCode).json({ errMsg });
+    return res.status(statusCode).json({ [nullType]: null, errMsg });
 }

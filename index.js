@@ -34,7 +34,7 @@ app.post('/api/register-user', async (req, res) => {
 
         // if any destructured variable is missing send error message
         if (!userName || !userEmail || !userPassword || !recoveryStr) {
-            return res.status(400).json({ errMsg: "All field params (userName, userEmail, userPassword) are required." });
+            return processErrStr(res, "All field params (userName, userEmail, userPassword) are required for registration  process.", "succMsg");
         }
 
         //  destructure userData and errMsg properties from the retrun value ofject of register function
@@ -42,20 +42,20 @@ app.post('/api/register-user', async (req, res) => {
 
         // if user already exists then set a status code 409 otherwise 500 with the error message.
         if (errMsg) {
-            return processErrStr(res, errMsg);
+            return processErrStr(res, errMsg, "succMsg");
         }
 
         // if userData is available then send the userData
         if (succMsg) {
-            return res.status(201).json({ succMsg });
+            return res.status(201).json({ succMsg, errMsg: null });
         }
 
         // if anything unexpected happened and unable to get userdata and error message the send the bellow error message
-        return res.status(500).json({ errMsg: "Unexpected error during registration." });
+        return processErrStr(res, "Unexpected error occured during user registration process. Please try again later.", "succMsg");
     } catch (err) {
         // if any error message occured after calling the during registration process then print the error message to the console and send the message to the client with status code 500
         console.error("Registration error:", err);
-        return res.status(500).json({ errMsg: "Unexpected Server error occured during user registration process. Please try again later." });
+        return processErrStr(res, "Unexpected Server error occured during user registration process. Please try again later.", "succMsg");
     }
 });
 
@@ -66,25 +66,25 @@ app.post('/api/verify-email', async (req, res) => {
         const token = req.query.token;
 
         // check if token is available or not
-        if (!token) return res.status(400).send('JWT Token is Missing to verify email.');
+        if (!token) return processErrStr(res, "Token is required for email verification process.", "succMsg");
 
         // verify the token and get the success message or error message
         const { succMsg, errMsg } = await verifyEmail(token);
 
         // if error message found then send the error message to client
         if (errMsg) {
-            return processErrStr(res, errMsg);
+            return processErrStr(res, errMsg, "succMsg");
         } else if (succMsg) {
             // if success message found then send the success message to the client
-            return res.status(200).json({ succMsg });
+            return res.status(200).json({ succMsg, errMsg: null });
         }
 
         // if any unexpected error occures.
-        return res.status(500).json({ errMsg: "Unexpected error during Updating database during email verification. Please try again later" });
+        return processErrStr(res, "Unexpected error during email verification. Please try again later.", "succMsg");
     } catch (err) {
         // if any error message occured after calling the during registration process then print the error message to the console and send the message to the client with status code 500
         console.error("Registration error:", err);
-        return res.status(500).json({ errMsg: "Unexpected Server error occured during user registration process. Please try again later." });
+        return processErrStr(res, "Unexpected Server error occured during email verification process. Please try again later.", "succMsg");
     }
 });
 
@@ -96,7 +96,7 @@ app.post('/api/forgot-password', async (req, res) => {
 
         // check if user email is available or not
         if (!userEmail) {
-            return res.status(400).json({ errMsg: "userEmail is required." });
+            return processErrStr(res, "userEmail is required for forgot password process.", "succMsg");
         }
 
         // send the email to the user for forgot password
@@ -104,18 +104,18 @@ app.post('/api/forgot-password', async (req, res) => {
 
         // if error message found then send the error message to client
         if (errMsg) {
-            return processErrStr(res, errMsg);
+            return processErrStr(res, errMsg, "succMsg");
         }
         // if success message found then send the success message to the client
         if (succMsg) {
-            return res.status(201).json({ succMsg });
+            return res.status(201).json({ succMsg, errMsg: null });
         }
         
         // if any unexpected error occures.
-        return res.status(500).json({ errMsg: "Unexpected error during sending email for forgot password." });
+        return processErrStr(res, "Unexpected error occured during sending email for forgot password.", "succMsg");
     } catch (err) {
         console.error("Forgot Password error:", err);
-        return res.status(500).json({ errMsg: "Unexpected Server error occured during password update process. Please try again later." });
+        return processErrStr(res, "Unexpected Server error occured during forgot password process. Please try again later.", "succMsg");
     }
 });
 
@@ -127,7 +127,7 @@ app.patch('/api/update-password', async (req, res) => {
 
         // check all values
         if (!token || !newPassword) {
-            return res.status(400).json({ errMsg: "All fields (JWT Token, newPassword) values are required." });
+            return processErrStr(res, "All fields (JWT Token, newPassword) values are required for updating password.", "succMsg");
         }
 
         // update the password.
@@ -135,20 +135,20 @@ app.patch('/api/update-password', async (req, res) => {
 
         // if error message found
         if (errMsg) {
-            return processErrStr(res, errMsg);
+            return processErrStr(res, errMsg, "succMsg");
         }
 
         // if success message is returned then send the succes message.
         if (succMsg) {
-            return res.status(201).json({ succMsg });
+            return res.status(201).json({ succMsg, errMsg: null });
         }
 
         // if unexpected error occures.
-        return res.status(500).json({ errMsg: "Unexpected error occured during updating password." });
+        return processErrStr(res, "Unexpected error occured during updating password.", "succMsg");
     } catch (err) {
         // if any error message occured after calling the during registration process then print the error message to the console and send the message to the client with status code 500
         console.error("Password Update error:", err);
-        return res.status(500).json({ errMsg: "Unexpected Server error occured during password update process. Please try again later." });
+        return processErrStr(res, "Unexpected Server error occured during password update process. Please try again later.", "succMsg");
     }
 });
 
@@ -160,7 +160,7 @@ app.patch('/api/user-login', async (req, res) => {
 
         // check all values
         if (!userEmail || !userPassword) {
-            return res.status(400).json({ errMsg: "All fields (userEmail, userPassword) are required." });
+            return processErrStr(res, "All fields (userEmail, userPassword) are required for login.", "userData");
         }
 
         // login to database to get the credential secret
@@ -168,19 +168,19 @@ app.patch('/api/user-login', async (req, res) => {
 
         // if errMsg found
         if (errMsg) {
-            return processErrStr(res, errMsg);
+            return processErrStr(res, errMsg, "userData");
         }
 
         // if successfully logged in then retrun user credential data to client
         if (userData) {
-            return res.status(201).json({ userData });
+            return res.status(201).json({ userData, errMsg: null });
         }
 
         // if unexpected error occures.
-        return res.status(500).json({ errMsg: "Unexpected error occured during user login." });
+        return processErrStr(res, "Unexpected error occured during user login.", "userData");
     } catch (err) {
         console.error("User Login error:", err);
-        return res.status(500).json({ errMsg: "Unexpected Server error occured during user login process. Please try again later." });
+        return processErrStr(res, "Unexpected Server error occured during user login process. Please try again later.", "userData");
     }
 });
 
@@ -192,7 +192,7 @@ app.patch('/api/user-logout', async (req, res) => {
 
         // check all values
         if (!userEmail) {
-            return res.status(400).json({ errMsg: "All fields userEmail is required." });
+            return processErrStr(res, "userEmail is required for logout.", "succMsg");
         }
 
         // logout user
@@ -200,19 +200,19 @@ app.patch('/api/user-logout', async (req, res) => {
 
         // if error occured during user logout process
         if (errMsg) {
-            return processErrStr(res, errMsg);
+            return processErrStr(res, errMsg, "succMsg");
         }
 
         // if user successfully logged out
         if (succMsg) {
-            return res.status(201).json({ succMsg });
+            return res.status(201).json({ succMsg, errMsg: null });
         }
 
         // if unexpected error occures.
-        return res.status(500).json({ errMsg: "Unexpected error occured during logout." });
+        return processErrStr(res, "Unexpected error occured during user logout.", "succMsg");
     } catch (err) {
         console.error("User logout error:", err);
-        return res.status(500).json({ errMsg: "Unexpected Server error occured during user logout process. Please try again later." });
+        return processErrStr(res, "Unexpected Server error occured during user logout process. Please try again later.", "succMsg");
     }
 });
 
@@ -226,7 +226,7 @@ app.get('/api/get-todo-records', verifyJWT, async (req, res) => {
 
         // if user id is not available
         if (!userId) {
-            return res.status(400).json({ errMsg: "User id parameter value is required." });
+            return processErrStr(res, "User id parameter value is required.", "dataArr");
         }
 
         // initilialize empty returned value variable for later use case.
@@ -243,7 +243,7 @@ app.get('/api/get-todo-records', verifyJWT, async (req, res) => {
 
         // if unexpected error occures.
         if (!returnedValue) {
-            return res.status(500).json({ errMsg: "Unexpected server error occured while tried to fetch user requested data. Please try again later." });
+            return processErrStr(res, "Unexpected error occured during getting user requested data. Please try again later.", "dataArr");
         }
 
         // destructure dataArr and errMsg from returened value.
@@ -251,20 +251,20 @@ app.get('/api/get-todo-records', verifyJWT, async (req, res) => {
 
         // if error message occured send errMsg to client
         if (errMsg) {
-            return processErrStr(res, errMsg);
+            return processErrStr(res, errMsg, "dataArr");
         }
 
         // if data array of requrested data available send that to client
         if (dataArr) {
-            return res.status(200).json({ dataArr });
+            return res.status(200).json({ dataArr, errMsg: null });
         }
 
         // if some unexpected error occured later send user the bellow error message.
-        return res.status(500).json({ errMsg: "Unexpected error occured during getting user data. Please try again later." });
+        return processErrStr(res, "Unexpected error occured during getting user data. Please try again later.", "dataArr");
 
     } catch (err) {
         console.error("Fetching user data error:", err);
-        return res.status(500).json({ errMsg: "Unexpected Server error occured during the fetch process of requested user data. Please try again later." });
+        return processErrStr(res, "Unexpected Server error occured during the fetch process of requested user data. Please try again later.", "dataArr");
     }
 });
 
@@ -276,7 +276,7 @@ app.post('/api/add-todo-record', verifyJWT, async (req, res) => {
 
         // initial value check for null or undefined
         if (!date || !title || !description || !userId) {
-            return res.status(400).json({ errMsg: "All field params (date, title, description, userId) are required." });
+            return processErrStr(res, "All field params (date, title, description, userId) are required for adding todo record.", "succMsg");
         }
 
         // add the record to the database.
@@ -284,19 +284,19 @@ app.post('/api/add-todo-record', verifyJWT, async (req, res) => {
 
         // if error message returned from addTodoRecord then return the error message.
         if (errMsg) {
-            return processErrStr(res, errMsg);
+            return processErrStr(res, errMsg, "succMsg");
         }
 
         // if success message returned from addTodoRecord return the success message.
         if (succMsg) {
-            return res.status(201).json({ succMsg });
+            return res.status(201).json({ succMsg, errMsg: null });
         }
 
         // if some unexpected error occured later send user the bellow error message.
-        return res.status(500).json({ errMsg: "Unexpected error occured during addding user record. Please try again later." });
+        return processErrStr(res, "Unexpected error occured during adding user record. Please try again later.", "succMsg");
     } catch (err) {
         console.error("Error while adding todo record:", err);
-        return res.status(500).json({ errMsg: "Unexpected Server error occured during adding todo record process. Please try again later." });
+        return processErrStr(res, "Unexpected Server error occured during adding todo record process. Please try again later.", "succMsg");
     }
 });
 
@@ -307,24 +307,24 @@ app.get('/api/get-todo-record', verifyJWT, async (req, res) => {
         const recordId = req.query.recordId;
 
         if (!recordId) {
-            return res.status(400).json({ errMsg: "Record id paramater value is required for getting the specific record data." });
+            return processErrStr(res, "Record id paramater value is required for getting the specific record data.", "recordData");
         }
 
         // get the record data else return error message
         const { recordData, errMsg } = await getTodoRecord(recordId);
 
         if (errMsg) {
-            return processErrStr(res, errMsg);
+            return processErrStr(res, errMsg, "recordData");
         }
 
         if (recordData) {
-            return res.status(200).json({ recordId });
+            return res.status(200).json({ recordData, errMsg: null });
         }
 
-        return res.status(500).json({ errMsg: "Unexpected error occured during getting user record. Please try again later." });
+        return processErrStr(res, "Unexpected error occured during getting user record. Please try again later.", "recordData");
     } catch (err) {
         console.error("Error while adding todo record:", err);
-        return res.status(500).json({ errMsg: "Unexpected Server error occured during adding todo record process. Please try again later." });
+        return processErrStr(res, "Unexpected Server error occured during getting todo record process. Please try again later.", "recordData");
     }
 });
 
@@ -336,7 +336,7 @@ app.patch('/api/modify-todo-record', verifyJWT, async (req, res) => {
 
         // initial value check
         if (!date || !title || !description || !recordId) {
-            return res.status(400).json({ errMsg: "All field params (date, title, description, recordId) are required." });
+            return processErrStr(res, "All field params (date, title, description, recordId) are required for modifying todo record process.", "succMsg");
         }
 
         // add the record to the database.
@@ -344,19 +344,19 @@ app.patch('/api/modify-todo-record', verifyJWT, async (req, res) => {
 
         // if error message returned from addTodoRecord then return the error message.
         if (errMsg) {
-            return processErrStr(res, errMsg);
+            return processErrStr(res, errMsg, "succMsg");
         }
 
         // if success message returned from addTodoRecord return the success message.
         if (succMsg) {
-            return res.status(201).json({ succMsg });
+            return res.status(201).json({ succMsg, errMsg: null });
         }
 
         // if some unexpected error occured later send user the bellow error message.
-        return res.status(500).json({ errMsg: "Unexpected error occured during modifying the user record. Please try again later." });
+        return processErrStr(res, "Unexpected error occured during modifying user record. Please try again later.", "succMsg");
     } catch (err) {
         console.error("Error while modifying todo record:", err);
-        return res.status(500).json({ errMsg: "Unexpected Server error occured during modifying todo record process. Please try again later." });
+        return processErrStr(res, "Unexpected Server error occured during modifying todo record process. Please try again later.", "succMsg");
     }
 });
 
@@ -367,7 +367,7 @@ app.delete('/api/delete-todo-record/:recordId', verifyJWT, async (req, res) => {
         const { recordId } = req.params;
 
         if (!recordId) {
-            return res.status(400).json({ errMsg: "Record id paramater value is required for getting the specific record data." });
+            return processErrStr(res, "Record id paramater value is required for getting the specific record data.", "succMsg");
         }
 
         // delete the record data
@@ -375,19 +375,19 @@ app.delete('/api/delete-todo-record/:recordId', verifyJWT, async (req, res) => {
 
         // if error occured return the error message.
         if (errMsg) {
-            return processErrStr(res, errMsg);
+            return processErrStr(res, errMsg, "succMsg");
         }
 
         // if successfully deleted the record then return the success message
         if (succMsg) {
-            return res.status(201).json({ succMsg });
+            return res.status(201).json({ succMsg, errMsg: null });
         }
 
         // if some unexpected error occured later send user the bellow error message.
-        return res.status(500).json({ errMsg: "Unexpected error occured during deleting the user record. Please try again later." });
+        return processErrStr(res, "Unexpected error occured during deleting user record. Please try again later.", "succMsg");
     } catch (err) {
         console.error("Error while deleting todo record:", err);
-        return res.status(500).json({ errMsg: "Unexpected Server error occured during deleting todo record process. Please try again later." });
+        return processErrStr(res, "Unexpected Server error occured during deleting todo record process. Please try again later.", "succMsg");
     }
 });
 
