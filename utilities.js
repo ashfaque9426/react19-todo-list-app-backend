@@ -31,7 +31,7 @@ async function checkPassword(inputPassword, storedHash) {
 export async function register(userName, userEmail, userPassword) {
     // safeguard cheking all the parameters
     if (!userName || !userEmail || !userPassword) {
-        return { errMsg: "The parameter value for each userName, userEmail, userPassword are required." };
+        return { errMsg: "The parameter values for each userName, userEmail, userPassword are required to insert the user record to the database for registration." };
     }
 
     // check if user record existed in users table
@@ -95,6 +95,11 @@ export async function register(userName, userEmail, userPassword) {
 }
 
 export async function verifyEmail(token) {
+    // safeguard cheking all the parameters
+    if (!token) {
+        return { errMsg: "The parameter value for each token is required to verify the user email." };
+    }
+
     try {
         // decode the given token and get the email from it
         const decoded = jwt.verify(token, process.env.APP_SECRET);
@@ -115,8 +120,56 @@ export async function verifyEmail(token) {
     }
 }
 
+// forgot password
+export async function forgotPassword(userEmail) {
+    // safeguard cheking all the parameters
+    if (!userEmail) {
+        return { errMsg: "The parameter value for each userEmail is required to send the forgot password link to user email." };
+    }
+
+    try {
+        // get the user data from users table by user_email or if login log_in_Status is 1 then return the message user already logged in
+        const [doesUserExist] = await pool.query(`SELECT * FROM users WHERE user_email = ?`, [userEmail]);
+
+        if (doesUserExist.length === 0 || doesUserExist[0].email_varified === 0) {
+            return { errMsg: doesUserExist.length === 0 ? "User record does not exist in the database." : "User Email is not verified yet." };
+        } else if (doesUserExist[0].log_in_Status === 1) {
+            return { errMsg: 'You can not update the password while you are still logged in. Please log out first to update password.' };
+        }
+
+        // send the verification email to the user email address and return the success message
+        const token = jwt.sign({ email: userEmail }, process.env.APP_SECRETT, { expiresIn: '15m' });
+        const verificationLink = `${process.env.SITE_DOMAIN}/update-password?token=${token}`;
+
+        const transporter = nodemailer.createTransport({
+            service: 'gmail',
+            auth: {
+                user: process.env.APP_EMAIL,
+                pass: process.env.APP_PASS,
+            },
+        });
+
+        await transporter.sendMail({
+            from: process.env.APP_EMAIL,
+            to: userEmail,
+            subject: "Update Your Password For Todo List App",
+            html: `<p>Click <a href="${verificationLink}">here</a> to update your password.</p>`
+        });
+
+        return { succMsg: `Password reset link has been sent to your email address.` };
+    } catch (err) {
+        console.error("Database error:", err.message);
+        return { errMsg: err.message };
+    }
+}
+
 // update password
 export async function updatePassword(token, newPassword) {
+    // safeguard cheking all the parameters
+    if (!token || !newPassword) {
+        return { errMsg: "The parameter values for each token and newPassword are required to update password." };
+    }
+
     try {
         const decoded = jwt.verify(token, process.env.APP_SECRETT);
         const email = decoded.email;
@@ -149,7 +202,7 @@ export async function updatePassword(token, newPassword) {
 export async function login(userEmail, userPassword) {
     // safeguard cheking all the parameters
     if (!userEmail || !userPassword) {
-        return { errMsg: "The parameter value for each userName, userEmail, userPassword, recoveryStr are required." };
+        return { errMsg: "The parameter values for each userName, userEmail, userPassword, recoveryStr are required for user login." };
     }
 
     try {
@@ -190,7 +243,7 @@ export async function login(userEmail, userPassword) {
 export async function logout(userEmail) {
     // param check
     if(!userEmail) {
-        return { errMsg: "The parameter value for userEmail is required." };
+        return { errMsg: "The parameter value for userEmail is required to logout the user." };
     }
 
     try {
@@ -224,7 +277,7 @@ export async function getTodoListRecord(userId) {
     // if user log_in_status is 1 then give the user back the record form todo_list_user_data table
     // otherwise return an error message
 
-    if (isNaN(userId)) return { errMsg: "User Id parameter value as a number required." };
+    if (isNaN(userId)) return { errMsg: "User Id parameter value as a number required for getting the todo list records for the user." };
 
     try {
         const [rows] = await pool.query(`SELECT todo_list_user_data.id as 'ID', todo_list_user_data.todo_date as 'Date', todo_list_user_data.todo_title as 'Title', todo_description as 'Description', user_id as 'UserID'
@@ -240,12 +293,12 @@ FROM todo_list_user_data JOIN users ON todo_list_user_data.user_id = users.id WH
 // get todo list record for a user filtered by params
 export async function getFilteredTodoList(userId, date = "", title = "") {
     // check the first parameter as a number available or not if not return error message
-    if (isNaN(userId)) return { errMsg: "User Id parameter value as a number required." };
+    if (isNaN(userId)) return { errMsg: "User Id parameter value as a number required to get filtered todolist records." };
 
     // check only date or title parameter value is available as string and if date is available does it meet the regex format /^\d{4}-\d{2}-\d{2}/ if any of the bellow condition failed then return the error message
-    if (date && title) return { errMsg: "Only one, date or title parameter value is required as string, not both at once." };
-    else if ((date && typeof date !== 'string') || (title && typeof title !== 'string')) return { errMsg: `${(date ? 'date' : 'title')} parameter values is required as strings.` };
-    if (date && !date.match(/^\d{4}-\d{2}-\d{2}/)) return { errMsg: "Date parameter value does not match the format YYYY-MM-DD" };
+    if (date && title) return { errMsg: "Only one, date or title parameter value is required as string, not both at once to get filtered todolist records." };
+    else if ((date && typeof date !== 'string') || (title && typeof title !== 'string')) return { errMsg: `${(date ? 'date' : 'title')} parameter values is required as strings to get filtered todolist records.` };
+    if (date && !date.match(/^\d{4}-\d{2}-\d{2}/)) return { errMsg: "Date parameter value does not match the format YYYY-MM-DD to get filtered todolist records" };
 
     let queryStr = `SELECT todo_list_user_data.id as 'ID', todo_list_user_data.todo_date as 'Date', todo_list_user_data.todo_title as 'Title', todo_description as 'Description', user_id as 'UserID'
 FROM todo_list_user_data JOIN users ON todo_list_user_data.user_id = users.id `;
@@ -278,9 +331,9 @@ FROM todo_list_user_data JOIN users ON todo_list_user_data.user_id = users.id `;
 // add totolist record
 export async function addTodoRecord(date, title, description, userId) {
     // check all parameter values otherwise return an error message
-    if (typeof date !== 'string' || typeof title !== 'string' || typeof description !== 'string') return { errMsg: "date<iso date str.split[0]>, title<str>, descrition<str> parameter values are required." };
-    if (typeof date === 'string' && !date.match(/^\d{4}-\d{2}-\d{2}/)) return { errMsg: "Date parameter value does not match the format YYYY-MM-DD, only YYYY-MM-DD date format required as a string." };
-    if (isNaN(userId)) return { errMsg: "userId parameter value as a number required." };
+    if (typeof date !== 'string' || typeof title !== 'string' || typeof description !== 'string') return { errMsg: "date<iso date str.split[0]>, title<str>, descrition<str> parameter values are required for adding todos to the record." };
+    if (typeof date === 'string' && !date.match(/^\d{4}-\d{2}-\d{2}/)) return { errMsg: "Date parameter value does not match the format YYYY-MM-DD, only YYYY-MM-DD date format required as a string for adding todos to the record." };
+    if (isNaN(userId)) return { errMsg: "userId parameter value as a number required for adding todos to the record." };
 
     // if log_in_status is 1 then add the record to todo_list_user_data table and if table is not created already create the table first
     try {
@@ -315,7 +368,7 @@ export async function addTodoRecord(date, title, description, userId) {
 export async function getTodoRecord(recordId) {
     // check all param values
     if (isNaN(recordId)) {
-        return { errMsg: `recordId parameter value as a number is required.` };
+        return { errMsg: `recordId parameter value as a number is required to get todo list record.` };
     }
 
     // get the record and return it or return the error message
@@ -331,9 +384,9 @@ export async function getTodoRecord(recordId) {
 // modify todoList record
 export async function modifyTodoRecord(date, title, description, recordId) {
     // check all parameter values otherwise return an error message
-    if (typeof date !== 'string' || typeof title !== 'string' || typeof description !== 'string') return { errMsg: "date<iso date str.split[0]>, title<str>, descrition<str> parameter values are required." };
-    if (typeof date === 'string' && !date.match(/^\d{4}-\d{2}-\d{2}/)) return { errMsg: "Date parameter value does not match the format YYYY-MM-DD" };
-    if (isNaN(recordId)) return { errMsg: "recordId parameter value as a number required." };
+    if (typeof date !== 'string' || typeof title !== 'string' || typeof description !== 'string') return { errMsg: "date<iso date str.split[0]>, title<str>, descrition<str> parameter values are required to modify todo list record." };
+    if (typeof date === 'string' && !date.match(/^\d{4}-\d{2}-\d{2}/)) return { errMsg: "Date parameter value does not match the format YYYY-MM-DD to modify todo list record" };
+    if (isNaN(recordId)) return { errMsg: "recordId parameter value as a number required to modify todo list record." };
 
     // if log_in_status is 1 then modify the current record of todo_list_user_data table by id field
     try {
@@ -353,7 +406,7 @@ export async function modifyTodoRecord(date, title, description, recordId) {
 // detele todolist record
 export async function deleteTodoRecord(recordId) {
     // check recordId patameter is a number type. if not return a error message.
-    if(isNaN(recordId)) return { errMsg: "userId and recordId parameter value must be in number type" };
+    if(isNaN(recordId)) return { errMsg: "userId and recordId parameter value must be in number type to delete todo list record." };
 
     // if log_in_status is 1 then delete the requested record of todo_list_user_data table by id field
     try {

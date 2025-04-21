@@ -88,6 +88,37 @@ app.post('/api/verify-email', async (req, res) => {
     }
 });
 
+// forgot password api
+app.post('/api/forgot-password', async (req, res) => {
+    try {
+        // get the user email from req.body object
+        const { userEmail } = req.body;
+
+        // check if user email is available or not
+        if (!userEmail) {
+            return res.status(400).json({ errMsg: "userEmail is required." });
+        }
+
+        // send the email to the user for forgot password
+        const { succMsg, errMsg } = await forgotPassword(userEmail);
+
+        // if error message found then send the error message to client
+        if (errMsg) {
+            return processErrStr(res, errMsg);
+        }
+        // if success message found then send the success message to the client
+        if (succMsg) {
+            return res.status(201).json({ succMsg });
+        }
+        
+        // if any unexpected error occures.
+        return res.status(500).json({ errMsg: "Unexpected error during sending email for forgot password." });
+    } catch (err) {
+        console.error("Forgot Password error:", err);
+        return res.status(500).json({ errMsg: "Unexpected Server error occured during password update process. Please try again later." });
+    }
+});
+
 // update password api.
 app.patch('/api/update-password', async (req, res) => {
     try {
