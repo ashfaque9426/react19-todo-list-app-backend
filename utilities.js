@@ -138,7 +138,7 @@ export async function forgotPassword(userEmail) {
         }
 
         // send the verification email to the user email address and return the success message
-        const token = jwt.sign({ email: userEmail }, process.env.APP_SECRETT, { expiresIn: '15m' });
+        const token = jwt.sign({ email: userEmail }, process.env.APP_SECRETT, { expiresIn: '5m' });
         const verificationLink = `${process.env.SITE_DOMAIN}/update-password?token=${token}`;
 
         const transporter = nodemailer.createTransport({
@@ -153,7 +153,7 @@ export async function forgotPassword(userEmail) {
             from: process.env.APP_EMAIL,
             to: userEmail,
             subject: "Update Your Password For Todo List App",
-            html: `<p>Click <a href="${verificationLink}">here</a> to update your password.</p>`
+            html: `<p>Click <a href="${verificationLink}">here</a> to update your password. Your token is valid 5 minutes from now.</p>`
         });
 
         return { succMsg: `Password reset link has been sent to your email address.` };
