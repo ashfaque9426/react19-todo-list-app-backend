@@ -301,21 +301,20 @@ export async function getFilteredTodoList(userId, date = "", title = "") {
     if (date && !date.match(/^\d{4}-\d{2}-\d{2}/)) return { errMsg: "Date parameter value does not match the format YYYY-MM-DD to get filtered todolist records" };
 
     let queryStr = `SELECT todo_list_user_data.id as 'ID', todo_list_user_data.todo_date as 'Date', todo_list_user_data.todo_title as 'Title', todo_description as 'Description', user_id as 'UserID'
-FROM todo_list_user_data JOIN users ON todo_list_user_data.user_id = users.id `;
+FROM todo_list_user_data JOIN users ON todo_list_user_data.user_id = users.id WHERE todo_list_user_data.user_id = ? AND users.log_in_Status = 1`;
 
     // set the initial param array
-    const params = [];
+    const params = [userId];
 
     // update the query string and push values to params
     if (date) {
-        queryStr += `WHERE todo_list_user_data.todo_date = ? AND users.log_in_Status = 1`;
+        queryStr += ` AND todo_list_user_data.todo_date = ?`;
         params.push(date);
-    } else if (title) {
-        queryStr += `WHERE todo_list_user_data.todo_title = ? AND users.log_in_Status = 1`;
+    }
+
+    if (title) {
+        queryStr += ` AND todo_list_user_data.todo_title = ?`;
         params.push(title);
-    } else {
-        queryStr += `WHERE todo_list_user_data.user_id = ? AND users.log_in_Status = 1`;
-        params.push(userId);
     }
 
     // try to query to the database if get the result then return the value or return an error message
