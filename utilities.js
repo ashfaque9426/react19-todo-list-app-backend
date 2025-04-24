@@ -41,7 +41,8 @@ export async function register(userName, userEmail, userPassword) {
                     id INT NOT NULL AUTO_INCREMENT,
                     user_name VARCHAR(256) NOT NULL,
                     user_email VARCHAR(256) NOT NULL,
-                    hashed_pass  VARCHAR(256) NOT NULL,
+                    hashed_pass VARCHAR(256) NOT NULL,
+                    refresh_token VARCHAR(256) DEFAULT NULL,
                     log_in_Status BOOLEAN NOT NULL DEFAULT 0,
                     email_varified BOOLEAN NOT NULL DEFAULT 0,
                     PRIMARY KEY (id)
@@ -199,7 +200,7 @@ export async function updatePassword(token, newPassword) {
 }
 
 // login
-export async function login(userEmail, userPassword) {
+export async function login(userEmail, userPassword, res) {
     // safeguard cheking all the parameters
     if (!userEmail || !userPassword) {
         return { errMsg: "The parameter values for each userName, userEmail, userPassword, recoveryStr are required for user login." };
@@ -218,18 +219,26 @@ export async function login(userEmail, userPassword) {
         // if hashed password matches then change log_in_Status is to 1 and give the user user USER_LOGIN_SECRET and update the log in status in the database, else send error message
         const passwordMatched = await checkPassword(userPassword, doesUserExist[0].hashed_pass);
 
+        const payload = {
+            userId: doesUserExist[0].id,
+            userName: doesUserExist[0].user_name,
+            userEmail: userEmail,
+        };
+
         if (passwordMatched) {
-            await pool.query(`UPDATE users SET log_in_Status = 1 WHERE id = ?`, [doesUserExist[0].id]);
+            const secret = jwt.sign(payload, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '1h' });
+            const refreshToken = jwt.sign(payload, process.env.REFRESH_TOKEN_SECRET, { expiresIn: '7d' });
+            await pool.query(`UPDATE users SET log_in_Status = ? AND refresh_token = ? WHERE id = ?`, [1, refreshToken, doesUserExist[0].id]);
 
-            const payload = {
-                userId: doesUserExist[0].id,
-                userName: doesUserExist[0].user_name,
-                userEmail: userEmail,
-            };
+            res.cookie('refreshToken', refreshToken, {
+                httpOnly: true,
+                sameSite: 'Lax',
+                secure: false,
+                path: '/api',
+                maxAge: 7 * 24 * 60 * 60 * 1000
+            });
 
-            const secret = jwt.sign(payload, process.env.USER_LOGIN_SECRET, { expiresIn: '1h' });
-
-            return { userData: { userId: doesUserExist[0].id, userEmail: userEmail, userName: doesUserExist[0].user_name, userSecret: secret } };
+            return { userData: { userId: doesUserExist[0].id, userEmail: userEmail, userName: doesUserExist[0].user_name, accessToken: secret } };
         } else {
             return { errMsg: 'User password does not match. Please make sure you are providing the user email and password correctly first.' };
         }
@@ -239,15 +248,48 @@ export async function login(userEmail, userPassword) {
     }
 }
 
-// logout
-export async function logout(userEmail) {
-    // param check
-    if(!userEmail) {
-        return { errMsg: "The parameter value for userEmail is required to logout the user." };
+// refresh token
+export async function generateAccessToken(res, token) {
+    if (!res || !token) {
+        return { errMsg: `${!res ? "Response Object" : "Refresh token"} is required to generate new access token.` };
     }
 
     try {
-        // fetch the user data from database
+        const payload = jwt.verify(token, process.env.REFRESH_TOKEN_SECRET);
+
+        // Optional DB check (recommended)
+        const [users] = await pool.query("SELECT * FROM users WHERE id = ?", [payload.id]);
+
+        if (!users.length || users[0].refresh_token !== token) {
+            return { errMsg: "Invalid Refresh Token." };
+        }
+
+        const newAccessToken = jwt.sign(
+            { userId: users[0].id, userName: users[0].user_name, userEmail: users[0].user_email },
+            process.env.ACCESS_TOKEN_SECRET,
+            { expiresIn: '15m' }
+        );
+
+        return { accessToken: newAccessToken };
+    } catch (err) {
+        res.clearCookie('refreshToken', {
+            httpOnly: true,
+            sameSite: 'Lax',
+            secure: false,
+            path: '/api'
+        });
+        return { errMsg: "Invalid Refresh Token." };
+    }
+}
+
+// logout
+export async function logout(userEmail, req, res) {
+    if (!userEmail || !req || !res) {
+        return { errMsg: `${!userEmail ? "userEmail" : !req ? "Request Object" : "Response Object"} is required to log out the user.` };
+    }
+
+    try {
+        // check if the user is logged in or not by checking the log_in_Status field in the database
         const [doesUserExist] = await pool.query(`SELECT log_in_Status FROM users WHERE user_email = ?`, [userEmail]);
 
         // if user not found or logged out already then retrun the error message
@@ -258,10 +300,21 @@ export async function logout(userEmail) {
         }
 
         // now update the login status to the database.
-        const [updateResult] = await pool.query(`UPDATE users SET log_in_Status = 0 WHERE user_email = ?`, [userEmail]);
+        const [updateResult] = await pool.query(`UPDATE users SET refresh_token = ?, log_in_Status = ? WHERE user_email = ?`, [null, 0, userEmail]);
 
         // if successfully updated the logged out field in the database then return the success message else the error message.
         if (updateResult?.affectedRows > 0 && updateResult?.changedRows > 0) {
+            // look for the refresh token in the cookies and clear it if it exists
+            const refreshToken = req.cookies.refreshToken;
+            if (refreshToken) {
+                res.clearCookie('refreshToken', {
+                    httpOnly: true,
+                    sameSite: 'Lax',
+                    secure: false,
+                    path: '/api'
+                });
+            }
+
             return { succMsg: "User logged out successfully." };
         } else {
             return { errMsg: "Something went wrong when trying to log out the user. Please try again." };
@@ -281,7 +334,7 @@ export async function getTodoListRecord(userId) {
 
     try {
         const [rows] = await pool.query(`SELECT todo_list_user_data.id as 'ID', todo_list_user_data.todo_date as 'Date', todo_list_user_data.todo_title as 'Title', todo_description as 'Description', user_id as 'UserID'
-FROM todo_list_user_data JOIN users ON todo_list_user_data.user_id = users.id WHERE todo_list_user_data.user_id = ? AND users.log_in_Status = 1`, [userId]);
+FROM todo_list_user_data JOIN users ON todo_list_user_data.user_id = users.id WHERE todo_list_user_data.user_id = ? AND users.log_in_Status = ?`, [userId, 1]);
         return { dataArr: rows };
     }
     catch (err) {
@@ -341,7 +394,7 @@ export async function addTodoRecord(date, title, description, userId) {
                     id INT NOT NULL AUTO_INCREMENT,
                     todo_date VARCHAR(256) NOT NULL,
                     todo_title VARCHAR(256) NOT NULL,
-                    todo_description  VARCHAR(256) NOT NULL,
+                    todo_description VARCHAR(256) NOT NULL,
                     user_id INT NOT NULL,
                     PRIMARY KEY (id),
                     FOREIGN KEY (user_id) REFERENCES users(id)
@@ -389,7 +442,7 @@ export async function modifyTodoRecord(date, title, description, recordId) {
 
     // if log_in_status is 1 then modify the current record of todo_list_user_data table by id field
     try {
-        const [updateResult] = await pool.query(`UPDATE todo_list_user_data JOIN users ON todo_list_user_data.user_id = users.id SET todo_date = ?, todo_title = ?, todo_description = ? WHERE todo_list_user_data.id = ? AND users.log_in_Status = 1`, [date, title, description, recordId]);
+        const [updateResult] = await pool.query(`UPDATE todo_list_user_data JOIN users ON todo_list_user_data.user_id = users.id SET todo_date = ?, todo_title = ?, todo_description = ? WHERE todo_list_user_data.id = ? AND users.log_in_Status = ?`, [date, title, description, recordId, 1]);
 
         if (updateResult?.affectedRows > 0 && updateResult?.changedRows > 0) {
             return { succMsg: "Your todo list record updated successfully in the database." }
@@ -432,8 +485,11 @@ export async function processErrStr(res, errMsg, nullType) {
     let statusCode = 500;
 
     // change if errMsg includes any of the specified string
-    if (errMsg.includes('required') || errMsg.includes('Invalid')) {
+    if (errMsg.includes('required')) {
         statusCode = 400;
+    }
+    else if (errMsg.includes('Invalid') || errMsg.includes('Unauthorized') || errMsg.includes('expired')) {
+        statusCode = 401;
     }
     else if (errMsg.includes('already exists') || errMsg.includes('does not match') || errMsg.includes('does not exist') || errMsg.includes('log out first') || errMsg.includes('already logged in') || errMsg.includes('already logged out')) {
         statusCode = 409;

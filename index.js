@@ -12,10 +12,17 @@ dotenv.config();
 import cors from 'cors';
 
 // import custom middleware and utility functions and other imports
-import { addTodoRecord, deleteTodoRecord, getFilteredTodoList, getTodoRecord, login, logout, modifyTodoRecord, processErrStr, register, updatePassword, verifyEmail } from './utilities.js';
+import { addTodoRecord, deleteTodoRecord, generateAccessToken, getFilteredTodoList, getTodoRecord, login, logout, modifyTodoRecord, processErrStr, register, updatePassword, verifyEmail } from './utilities.js';
 import verifyJWT from './custom-middleware.js';
 // apply cors middleware to enable cors origin requests.
-app.use(cors());
+app.use(cors({
+    origin: 'http://localhost:3000',
+    credentials: true
+}));
+
+// import cookie-parser middleware to parse cookies from the request.
+import cookieParser from 'cookie-parser';
+app.use(cookieParser());
 
 // parse the incoming requests to work with json paylods for post, put and patch requests.
 app.use(express.json());
@@ -164,7 +171,7 @@ app.patch('/api/user-login', async (req, res) => {
         }
 
         // login to database to get the credential secret
-        const { userData, errMsg } = await login(userEmail, userPassword);
+        const { userData, errMsg } = await login(userEmail, userPassword, res);
 
         // if errMsg found
         if (errMsg) {
@@ -184,19 +191,42 @@ app.patch('/api/user-login', async (req, res) => {
     }
 });
 
-// user logout api
-app.patch('/api/user-logout', async (req, res) => {
+// refresh token api
+app.post('/api/refresh-access-token', async (req, res) => {
     try {
-        // retrieve the user eamil
+        const refreshToken = req.cookies.refreshToken;
+        if (!refreshToken) return processErrStr(res, "Invalid refresh token.", "accessToken");
+
+        const { accessToken, errMsg } = await generateAccessToken(res, refreshToken);
+
+        if (errMsg) {
+            return processErrStr(res, errMsg, "accessToken");
+        }
+
+        if (accessToken) {  
+            return res.status(200).json({ accessToken, errMsg: null });
+        }
+
+        return processErrStr(res, "Unexpected server error occured during generating access token.", "accessToken");
+    } catch (err) {
+        console.error("Error while refreshing access token:", err);
+        return processErrStr(res, "Unexpected Server error occured during generating access token. Please try again later.", "accessToken");
+    }
+});
+
+// user logout api
+app.patch('/api/user-logout', verifyJWT, async (req, res) => {
+    try {
+        // get the user email and refresh token from req.body object
         const { userEmail } = req.body;
 
         // check all values
-        if (!userEmail) {
-            return processErrStr(res, "userEmail is required for logout.", "succMsg");
+        if (!userEmail || req.decoded.userEmail !== userEmail) {
+            return processErrStr(res, `Invalid user email found. Unable to logout the user. `, "succMsg");
         }
 
         // logout user
-        const { succMsg, errMsg } = await logout(userEmail);
+        const { succMsg, errMsg } = await logout(userEmail, req, res);
 
         // if error occured during user logout process
         if (errMsg) {
@@ -225,8 +255,8 @@ app.get('/api/get-todo-records', verifyJWT, async (req, res) => {
         const title = req.query.title;
 
         // if user id is not available
-        if (!userId) {
-            return processErrStr(res, "User id parameter value is required.", "dataArr");
+        if (!userId || req.decoded.userId !== userId) {
+            return processErrStr(res, `${!userId ? "User id is required to get todo records" : "Invalid user id detected. Todo records access denied."}`, "dataArr");
         }
 
         // initilialize empty returned value variable for later use case.
@@ -279,6 +309,11 @@ app.post('/api/add-todo-record', verifyJWT, async (req, res) => {
             return processErrStr(res, "All field params (date, title, description, userId) are required for adding todo record.", "succMsg");
         }
 
+        // check if the user id is valid or not
+        if (req.decoded.userId !== userId) {
+            return processErrStr(res, "Invalid user id detected. Add Todo record access denied.", "succMsg");
+        }
+
         // add the record to the database.
         const { succMsg, errMsg } = await addTodoRecord(date, title, description, userId);
 
@@ -310,6 +345,20 @@ app.get('/api/get-todo-record', verifyJWT, async (req, res) => {
             return processErrStr(res, "Record id paramater value is required for getting the specific record data.", "recordData");
         }
 
+        // get the refresh token from cookies and check if the refresh token is available or not
+        const refreshToken = req.cookies.refreshToken;
+
+        if (!refreshToken) {
+            return processErrStr(res, "Invalid refresh token.", "recordData");
+        }
+
+        // decode the refresh token to get the user id and check if the user id is valid or not
+        const decoded = jwt.verify(token, process.env.REFRESH_TOKEN_SECRET);
+
+        if (decoded.userId !== req.decoded.userId) {
+            return processErrStr(res, "Invalid user id detected. Get Todo record access denied.", "recordData");
+        }
+
         // get the record data else return error message
         const { recordData, errMsg } = await getTodoRecord(recordId);
 
@@ -337,6 +386,20 @@ app.patch('/api/modify-todo-record', verifyJWT, async (req, res) => {
         // initial value check
         if (!date || !title || !description || !recordId) {
             return processErrStr(res, "All field params (date, title, description, recordId) are required for modifying todo record process.", "succMsg");
+        }
+
+        // get the refresh token from cookies and check if the refresh token is available or not
+        const refreshToken = req.cookies.refreshToken;
+
+        if (!refreshToken) {
+            return processErrStr(res, "Invalid refresh token.", "recordData");
+        }
+
+        // decode the refresh token to get the user id and check if the user id is valid or not
+        const decoded = jwt.verify(token, process.env.REFRESH_TOKEN_SECRET);
+
+        if (decoded.userId !== req.decoded.userId) {
+            return processErrStr(res, "Invalid user id detected. Get Todo record access denied.", "recordData");
         }
 
         // add the record to the database.
@@ -368,6 +431,20 @@ app.delete('/api/delete-todo-record/:recordId', verifyJWT, async (req, res) => {
 
         if (!recordId) {
             return processErrStr(res, "Record id paramater value is required for getting the specific record data.", "succMsg");
+        }
+
+        // get the refresh token from cookies and check if the refresh token is available or not
+        const refreshToken = req.cookies.refreshToken;
+
+        if (!refreshToken) {
+            return processErrStr(res, "Invalid refresh token.", "recordData");
+        }
+
+        // decode the refresh token to get the user id and check if the user id is valid or not
+        const decoded = jwt.verify(token, process.env.REFRESH_TOKEN_SECRET);
+
+        if (decoded.userId !== req.decoded.userId) {
+            return processErrStr(res, "Invalid user id detected. Get Todo record access denied.", "recordData");
         }
 
         // delete the record data
