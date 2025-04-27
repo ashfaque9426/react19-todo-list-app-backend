@@ -3,6 +3,9 @@ import express from 'express';
 // create an instance of express.js server.
 const app = express();
 
+// import jwt package which is used to generate and verify json web tokens.
+import jwt from 'jsonwebtoken';
+
 // import dotenv package which is used to load environment variables from .env file.
 import dotenv from 'dotenv';
 // initilaizing config for dotenv to use environment vairables from .env file.
@@ -353,7 +356,7 @@ app.get('/api/get-todo-record', verifyJWT, async (req, res) => {
         }
 
         // decode the refresh token to get the user id and check if the user id is valid or not
-        const decoded = jwt.verify(token, process.env.REFRESH_TOKEN_SECRET);
+        const decoded = jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET);
 
         if (decoded.userId !== req.decoded.userId) {
             return processErrStr(res, "Invalid user id detected. Get Todo record access denied.", "recordData");
@@ -396,7 +399,7 @@ app.patch('/api/modify-todo-record', verifyJWT, async (req, res) => {
         }
 
         // decode the refresh token to get the user id and check if the user id is valid or not
-        const decoded = jwt.verify(token, process.env.REFRESH_TOKEN_SECRET);
+        const decoded = jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET);
 
         if (decoded.userId !== req.decoded.userId) {
             return processErrStr(res, "Invalid user id detected. Get Todo record access denied.", "recordData");
@@ -441,7 +444,7 @@ app.delete('/api/delete-todo-record/:recordId', verifyJWT, async (req, res) => {
         }
 
         // decode the refresh token to get the user id and check if the user id is valid or not
-        const decoded = jwt.verify(token, process.env.REFRESH_TOKEN_SECRET);
+        const decoded = jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET);
 
         if (decoded.userId !== req.decoded.userId) {
             return processErrStr(res, "Invalid user id detected. Get Todo record access denied.", "recordData");

@@ -442,8 +442,47 @@ export async function modifyTodoRecord(date, title, description, recordId) {
 
     // if log_in_status is 1 then modify the current record of todo_list_user_data table by id field
     try {
-        const [updateResult] = await pool.query(`UPDATE todo_list_user_data JOIN users ON todo_list_user_data.user_id = users.id SET todo_date = ?, todo_title = ?, todo_description = ? WHERE todo_list_user_data.id = ? AND users.log_in_Status = ?`, [date, title, description, recordId, 1]);
+        const [rows] = await pool.query(`SELECT * FROM todo_list_user_data WHERE todo_list_user_data.id = ? AND users.log_in_Status = ?`, [recordId, 1]);
 
+        if (rows.length === 0) {
+            return { errMsg: "The record you are trying to modify does not exist in the database." };
+        } else if (rows[0].user_id !== recordId) {
+            return { errMsg: "You are not authorized to modify this record." };
+        }
+
+        // if user does not provide any changes to the record then return the error message
+        if (rows[0].todo_date === date && rows[0].todo_title === title && rows[0].todo_description === description) {
+            return { errMsg: "No changes were made to the record." };
+        }
+
+        // update the record in the database
+        // check if each column of the record is already updated or not, if not then update.
+        let updateQuery = `UPDATE todo_list_user_data JOIN users ON todo_list_user_data.user_id = users.id`;
+        const params = [];
+
+        if (rows[0].todo_date !== date) {
+            updateQuery += ` SET todo_date = ?`;
+            params.push(date);
+        }
+
+        if (rows[0].todo_title !== title) {
+            updateQuery += `, todo_title = ?`;
+            params.push(title);
+        }
+
+        if (rows[0].todo_description !== description) {
+            updateQuery += `, todo_description = ?`;
+            params.push(description);
+        }
+
+        // required queries to update the record in the database
+        updateQuery += ` WHERE todo_list_user_data.id = ? AND users.log_in_Status = ?`;
+        params.push(recordId, 1);
+
+        // execute the query to update the record in the database
+        const [updateResult] = await pool.query(updateQuery, params);
+
+        // check if the record is updated successfully or not and return the success message or error message
         if (updateResult?.affectedRows > 0 && updateResult?.changedRows > 0) {
             return { succMsg: "Your todo list record updated successfully in the database." }
         } else {
@@ -485,7 +524,10 @@ export async function processErrStr(res, errMsg, nullType) {
     let statusCode = 500;
 
     // change if errMsg includes any of the specified string
-    if (errMsg.includes('required')) {
+    if (errMsg.includes('No changes')) {
+        statusCode = 304;
+    } 
+    else if (errMsg.includes('required')) {
         statusCode = 400;
     }
     else if (errMsg.includes('Invalid') || errMsg.includes('Unauthorized') || errMsg.includes('expired')) {
