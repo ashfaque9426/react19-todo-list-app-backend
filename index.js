@@ -198,7 +198,7 @@ app.patch('/api/user-login', async (req, res) => {
 app.post('/api/refresh-access-token', async (req, res) => {
     try {
         const refreshToken = req.cookies.refreshToken;
-        if (!refreshToken) return processErrStr(res, "Invalid refresh token.", "accessToken");
+        if (!refreshToken) return processErrStr(res, "Invalid Refresh Token.", "accessToken");
 
         const { accessToken, errMsg } = await generateAccessToken(res, refreshToken);
 

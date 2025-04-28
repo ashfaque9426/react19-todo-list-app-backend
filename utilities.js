@@ -251,7 +251,7 @@ export async function login(userEmail, userPassword, res) {
 // refresh token
 export async function generateAccessToken(res, token) {
     if (!res || !token) {
-        return { errMsg: `${!res ? "Response Object" : "Refresh token"} is required to generate new access token.` };
+        return { errMsg: `${!res ? "Response Object is required to generate new access token." : "Invalid Refresh Token."}` };
     }
 
     try {
