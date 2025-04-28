@@ -533,7 +533,7 @@ export async function processErrStr(res, errMsg, nullType) {
     else if (errMsg.includes('Invalid') || errMsg.includes('Unauthorized') || errMsg.includes('expired')) {
         statusCode = 401;
     }
-    else if (errMsg.includes('already exists') || errMsg.includes('does not match') || errMsg.includes('does not exist') || errMsg.includes('log out first') || errMsg.includes('already logged in') || errMsg.includes('already logged out')) {
+    else if (errMsg.includes('already exists') || errMsg.includes('not match') || errMsg.includes('not exist') || errMsg.includes('log out first') || errMsg.includes('already logged in') || errMsg.includes('already logged out')) {
         statusCode = 409;
     }
 
