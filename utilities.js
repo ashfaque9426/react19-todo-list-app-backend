@@ -84,7 +84,7 @@ export async function register(userName, userEmail, userPassword) {
                 html: `<p>Click <a href="${verificationLink}">here</a> to verify your email.</p>`
             });
 
-            return { succMsg: `Verification mail has sent to user and User Record has been added to database successfully.` };
+            return { succMsg: `User Registration Successfull. An verification email has sent to user and User Record has been added to database successfully.` };
         } else {
             return { errMsg: 'Something went wrong while trying to create user record. Please try again later.' };
         }

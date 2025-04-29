@@ -43,7 +43,7 @@ app.post('/api/register-user', async (req, res) => {
         const { userName, userEmail, userPassword } = req.body;
 
         // if any destructured variable is missing send error message
-        if (!userName || !userEmail || !userPassword || !recoveryStr) {
+        if (!userName || !userEmail || !userPassword) {
             return processErrStr(res, "All field params (userName, userEmail, userPassword) are required for registration  process.", "succMsg");
         }
 
