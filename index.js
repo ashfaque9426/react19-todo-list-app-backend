@@ -337,6 +337,7 @@ app.post('/api/add-todo-record', verifyJWT, async (req, res) => {
             return processErrStr(res, "All field params (date, title, description, time, status, userId) are required for adding todo record.", "succMsg");
         }
 
+        // check time format and status value to validate the format and status value which should be added to the database.
         const timeRegex = /^(0[1-9]|1[0-2]):[0-5][0-9] (AM|PM)$/
 
         if (!timeRegex.test(time)) {
@@ -418,14 +419,6 @@ app.get('/api/get-todo-record', verifyJWT, async (req, res) => {
 // modify todo record api
 app.patch('/api/modify-todo-record', verifyJWT, async (req, res) => {
     try {
-        // destructure required values from req.body
-        const { date, title, description, recordId } = req.body;
-
-        // initial value check
-        if (!date || !title || !description || !recordId) {
-            return processErrStr(res, "All field params (date, title, description, recordId) are required for modifying todo record process.", "succMsg");
-        }
-
         // get the refresh token from cookies and check if the refresh token is available or not
         const refreshToken = req.cookies.refreshToken;
 
@@ -438,6 +431,25 @@ app.patch('/api/modify-todo-record', verifyJWT, async (req, res) => {
 
         if (decoded.userId !== req.decoded.userId) {
             return processErrStr(res, "Invalid user id detected. Get Todo record access denied.", "recordData");
+        }
+
+        // destructure required values from req.body
+        const { date, title, description, time, status, recordId } = req.body;
+
+        // initial value check
+        if (!date || !title || !description || !recordId || !time || !status) {
+            return processErrStr(res, "All field params (date, title, description, time, status, recordId) are required for modifying todo record process.", "succMsg");
+        }
+
+        // check time format and status value to validate the format and status value which should be added to the database.
+        const timeRegex = /^(0[1-9]|1[0-2]):[0-5][0-9] (AM|PM)$/
+
+        if (!timeRegex.test(time)) {
+            return processErrStr(res, "Time is format like (HH:MM AM/PM) is required for adding to the todo record.", "succMsg");
+        }
+
+        if (status !== "completed" || status !== "not completed") {
+            return processErrStr(res, "Status value can only contain the string completed or not completed for adding to the todo record.", "succMsg");
         }
 
         // add the record to the database.

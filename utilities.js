@@ -441,7 +441,7 @@ export async function getTodoRecord(recordId) {
 
     // get the record and return it or return the error message
     try {
-        const [rows] = await pool.query(`SELECT * FROM todo_list_user_data JOIN users ON todo_list_user_data.user_id = users.id WHERE todo_list_user_data.id = ? AND users.log_in_Status = 1`, [recordId]);
+        const [rows] = await pool.query(`SELECT * FROM todo_list_user_data JOIN users ON todo_list_user_data.user_id = users.id WHERE todo_list_user_data.id = ? AND users.log_in_Status = ?`, [recordId, 1]);
         return { recordData: rows[0] };
     } catch (err) {
         console.error("Database error:", err.message);
@@ -450,7 +450,7 @@ export async function getTodoRecord(recordId) {
 }
 
 // modify todoList record
-export async function modifyTodoRecord(date, title, description, recordId) {
+export async function modifyTodoRecord(date, title, description, time, status, recordId) {
     // check all parameter values otherwise return an error message
     if (typeof date !== 'string' || typeof title !== 'string' || typeof description !== 'string') return { errMsg: "date<iso date str.split[0]>, title<str>, descrition<str> parameter values are required to modify todo list record." };
     if (typeof date === 'string' && !date.match(/^\d{4}-\d{2}-\d{2}/)) return { errMsg: "Date parameter value does not match the format YYYY-MM-DD to modify todo list record" };
@@ -467,7 +467,7 @@ export async function modifyTodoRecord(date, title, description, recordId) {
         }
 
         // if user does not provide any changes to the record then return the error message
-        if (rows[0].todo_date === date && rows[0].todo_title === title && rows[0].todo_description === description) {
+        if (rows[0].todo_date === date && rows[0].todo_title === title && rows[0].todo_description === description && rows[0].todo_time === time && rows[0].todo_status === status) {
             return { errMsg: "No changes were made to the record." };
         }
 
@@ -489,6 +489,16 @@ export async function modifyTodoRecord(date, title, description, recordId) {
         if (rows[0].todo_description !== description) {
             updateQuery += `, todo_description = ?`;
             params.push(description);
+        }
+
+        if (rows[0].todo_time !== time) {
+            updateQuery += `, todo_time = ?`;
+            params.push(time);
+        }
+
+        if (rows[0].todo_time !== time) {
+            updateQuery += `, todo_status = ?`;
+            params.push(status);
         }
 
         // required queries to update the record in the database
