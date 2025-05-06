@@ -343,6 +343,20 @@ FROM todo_list_user_data JOIN users ON todo_list_user_data.user_id = users.id WH
     }
 }
 
+// get all todo dates for a user
+export async function getAllTodoDates(userId) {
+    if (isNaN(userId)) return { errMsg: "User Id parameter value as a number required for getting the todo list records for the user." };
+
+    try {
+        const [rows] = await pool.query(`SELECT todo_list_user_data.todo_date as 'Date' FROM todo_list_user_data JOIN users ON todo_list_user_data.user_id = users.id WHERE todo_list_user_data.user_id = ? AND users.log_in_Status = ?`, [userId, 1]);
+        return { dateArr: rows };
+    }
+    catch (err) {
+        console.error("Database error:", err.message);
+        return { errMsg: err.message };
+    }
+}
+
 // get todo list record for a user filtered by params
 export async function getFilteredTodoList(userId, date = "", title = "") {
     // check the first parameter as a number available or not if not return error message
@@ -354,10 +368,10 @@ export async function getFilteredTodoList(userId, date = "", title = "") {
     if (date && !date.match(/^\d{4}-\d{2}-\d{2}/)) return { errMsg: "Date parameter value does not match the format YYYY-MM-DD to get filtered todolist records" };
 
     let queryStr = `SELECT todo_list_user_data.id as 'ID', todo_list_user_data.todo_date as 'Date', todo_list_user_data.todo_title as 'Title', todo_description as 'Description', user_id as 'UserID'
-FROM todo_list_user_data JOIN users ON todo_list_user_data.user_id = users.id WHERE todo_list_user_data.user_id = ? AND users.log_in_Status = 1`;
+FROM todo_list_user_data JOIN users ON todo_list_user_data.user_id = users.id WHERE todo_list_user_data.user_id = ? AND users.log_in_Status = ?`;
 
     // set the initial param array
-    const params = [userId];
+    const params = [userId, 1];
 
     // update the query string and push values to params
     if (date) {
@@ -381,7 +395,7 @@ FROM todo_list_user_data JOIN users ON todo_list_user_data.user_id = users.id WH
 }
 
 // add totolist record
-export async function addTodoRecord(date, title, description, userId) {
+export async function addTodoRecord(date, title, description, time, status, userId) {
     // check all parameter values otherwise return an error message
     if (typeof date !== 'string' || typeof title !== 'string' || typeof description !== 'string') return { errMsg: "date<iso date str.split[0]>, title<str>, descrition<str> parameter values are required for adding todos to the record." };
     if (typeof date === 'string' && !date.match(/^\d{4}-\d{2}-\d{2}/)) return { errMsg: "Date parameter value does not match the format YYYY-MM-DD, only YYYY-MM-DD date format required as a string for adding todos to the record." };
@@ -395,6 +409,8 @@ export async function addTodoRecord(date, title, description, userId) {
                     todo_date VARCHAR(256) NOT NULL,
                     todo_title VARCHAR(256) NOT NULL,
                     todo_description VARCHAR(256) NOT NULL,
+                    todo_time VARCHAR(256) NOT NULL,
+                    todo_status VARCHAR(256) NOT NULL,
                     user_id INT NOT NULL,
                     PRIMARY KEY (id),
                     FOREIGN KEY (user_id) REFERENCES users(id)
@@ -403,7 +419,7 @@ export async function addTodoRecord(date, title, description, userId) {
 
         await pool.query(createTableQuery);
 
-        const [result] = await pool.query(`INSERT INTO todo_list_user_data (todo_date, todo_title, todo_description, user_id) SELECT ?, ?, ?, id FROM users WHERE id = ? AND log_in_Status = 1`, [date, title, description, userId]);
+        const [result] = await pool.query(`INSERT INTO todo_list_user_data (todo_date, todo_title, todo_description, todo_time, todo_status, user_id) SELECT ?, ?, ?, ?, ? id FROM users WHERE id = ? AND log_in_Status = ?`, [date, title, description, time, status, userId, 1]);
 
         if (result.insertId && result.affectedRows > 0) {
             return { succMsg: "Todolist record added to the database successfully." }
@@ -527,7 +543,7 @@ export async function processErrStr(res, errMsg, nullType) {
     if (errMsg.includes('No changes')) {
         statusCode = 304;
     } 
-    else if (errMsg.includes('required')) {
+    else if (errMsg.includes('required') || errMsg.includes('can only contain')) {
         statusCode = 400;
     }
     else if (errMsg.includes('Invalid') || errMsg.includes('Unauthorized') || errMsg.includes('expired')) {

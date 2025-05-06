@@ -15,7 +15,7 @@ dotenv.config();
 import cors from 'cors';
 
 // import custom middleware and utility functions and other imports
-import { addTodoRecord, deleteTodoRecord, generateAccessToken, getFilteredTodoList, getTodoRecord, login, logout, modifyTodoRecord, processErrStr, register, updatePassword, verifyEmail } from './utilities.js';
+import { addTodoRecord, deleteTodoRecord, generateAccessToken, getAllTodoDates, getFilteredTodoList, getTodoRecord, login, logout, modifyTodoRecord, processErrStr, register, updatePassword, verifyEmail } from './utilities.js';
 import verifyJWT from './custom-middleware.js';
 // apply cors middleware to enable cors origin requests.
 app.use(cors({
@@ -301,15 +301,50 @@ app.get('/api/get-todo-records', verifyJWT, async (req, res) => {
     }
 });
 
+app.get('/api/get-todo-dates', verifyJWT, async (req, res) => {
+    try {
+        const userId = req.query.userId;
+        if (!userId || req.decoded.userId !== userId) {
+            return processErrStr(res, `${!userId ? "User id is required to get todo records" : "Invalid user id detected. Todo records access denied."}`, "dateArr");
+        }
+
+        const { dateArr, errMsg } = await getAllTodoDates(userId);
+
+        if (errMsg) {
+            return processErrStr(res, errMsg, "dateArr");
+        }
+
+        if (dateArr) {
+            return res.status(200).json({ dataArr, errMsg: null });
+        }
+
+        return processErrStr(res, "Unexpected error occured during getting all user record's dates from the database table. Please try again later.", "dateArr");
+
+    } catch (err) {
+        console.error("Fetching todo dates error:", err);
+        return processErrStr(res, "Unexpected Server error occured during the fetch process of requested todo dates. Please try again later.", "dateArr");
+    }
+});
+
 // add todo record api
 app.post('/api/add-todo-record', verifyJWT, async (req, res) => {
     try {
         // destructuring required parameter from req(request).body object
-        const { date, title, description, userId } = req.body;
+        const { date, title, description, time, status, userId } = req.body;
 
         // initial value check for null or undefined
-        if (!date || !title || !description || !userId) {
-            return processErrStr(res, "All field params (date, title, description, userId) are required for adding todo record.", "succMsg");
+        if (!date || !title || !description || !time || !status || !userId) {
+            return processErrStr(res, "All field params (date, title, description, time, status, userId) are required for adding todo record.", "succMsg");
+        }
+
+        const timeRegex = /^(0[1-9]|1[0-2]):[0-5][0-9] (AM|PM)$/
+
+        if (!timeRegex.test(time)) {
+            return processErrStr(res, "Time is format like (HH:MM AM/PM) is required for adding to the todo record.", "succMsg");
+        }
+
+        if (status !== "completed" || status !== "not completed") {
+            return processErrStr(res, "Status value can only contain the string completed or not completed for adding to the todo record.", "succMsg");
         }
 
         // check if the user id is valid or not
@@ -318,7 +353,7 @@ app.post('/api/add-todo-record', verifyJWT, async (req, res) => {
         }
 
         // add the record to the database.
-        const { succMsg, errMsg } = await addTodoRecord(date, title, description, userId);
+        const { succMsg, errMsg } = await addTodoRecord(date, title, description, time, status, userId);
 
         // if error message returned from addTodoRecord then return the error message.
         if (errMsg) {
