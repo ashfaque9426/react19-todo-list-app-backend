@@ -27,6 +27,20 @@ async function checkPassword(inputPassword, storedHash) {
     }
 }
 
+// check if the date is today or not
+function isNotPastDate(inputDateStr) {
+    // Parse the input string into a Date object
+    const [year, month, day] = inputDateStr.split('/').map(Number);
+    const inputDate = new Date(year, month - 1, day); // JS months are 0-based
+
+    // Get today's date at midnight (00:00:00)
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Strip time
+
+    // Compare
+    return inputDate >= today;
+}
+
 // login and register
 export async function register(userName, userEmail, userPassword) {
     // safeguard cheking all the parameters
@@ -400,6 +414,11 @@ export async function addTodoRecord(date, title, description, time, status, user
     if (typeof date !== 'string' || typeof title !== 'string' || typeof description !== 'string') return { errMsg: "date<iso date str.split[0]>, title<str>, descrition<str> parameter values are required for adding todos to the record." };
     if (typeof date === 'string' && !date.match(/^\d{4}-\d{2}-\d{2}/)) return { errMsg: "Date parameter value does not match the format YYYY-MM-DD, only YYYY-MM-DD date format required as a string for adding todos to the record." };
     if (isNaN(userId)) return { errMsg: "userId parameter value as a number required for adding todos to the record." };
+    if (typeof status !== 'string') return { errMsg: "status parameter value as a string required for adding todos to the record." };
+    if (status !== 'completed' && status !== 'not completed') return { errMsg: "status parameter value must be either completed or not completed for adding todos to the record." };
+
+    // check if the date is not a past date
+    if (!isNotPastDate(date)) return { errMsg: "The date you are trying to add is in the past. Please provide a valid date." };
 
     // if log_in_status is 1 then add the record to todo_list_user_data table and if table is not created already create the table first
     try {
@@ -442,6 +461,15 @@ export async function getTodoRecord(recordId) {
     // get the record and return it or return the error message
     try {
         const [rows] = await pool.query(`SELECT * FROM todo_list_user_data JOIN users ON todo_list_user_data.user_id = users.id WHERE todo_list_user_data.id = ? AND users.log_in_Status = ?`, [recordId, 1]);
+
+        if (rows.length === 0) {
+            return { errMsg: "The record you are trying to get does not exist in the database." };
+        }
+
+        if (!isNotPastDate(rows[0].todo_date)) {
+            return { errMsg: "The date you are trying to get is in the past. Please provide a valid date." };
+        }
+
         return { recordData: rows[0] };
     } catch (err) {
         console.error("Database error:", err.message);
@@ -455,6 +483,11 @@ export async function modifyTodoRecord(date, title, description, time, status, r
     if (typeof date !== 'string' || typeof title !== 'string' || typeof description !== 'string') return { errMsg: "date<iso date str.split[0]>, title<str>, descrition<str> parameter values are required to modify todo list record." };
     if (typeof date === 'string' && !date.match(/^\d{4}-\d{2}-\d{2}/)) return { errMsg: "Date parameter value does not match the format YYYY-MM-DD to modify todo list record" };
     if (isNaN(recordId)) return { errMsg: "recordId parameter value as a number required to modify todo list record." };
+    if (typeof status !== 'string') return { errMsg: "status parameter value as a string required to modify todo list record." };
+    if (status !== 'completed' && status !== 'not completed') return { errMsg: "status parameter value must be either completed or not completed to modify todo list record." };
+
+    // check if the date is not a past date
+    if (!isNotPastDate(date)) return { errMsg: "The date you are trying to add is in the past. Please provide a valid date." };
 
     // if log_in_status is 1 then modify the current record of todo_list_user_data table by id field
     try {
@@ -527,7 +560,7 @@ export async function deleteTodoRecord(recordId) {
 
     // if log_in_status is 1 then delete the requested record of todo_list_user_data table by id field
     try {
-        const [result] = await pool.query(`DELETE todo_list_user_data FROM todo_list_user_data JOIN users on todo_list_user_data.user_id = users.id WHERE todo_list_user_data.id = ? AND users.log_in_Status = 1`, [recordId]);
+        const [result] = await pool.query(`DELETE todo_list_user_data FROM todo_list_user_data JOIN users on todo_list_user_data.user_id = users.id WHERE todo_list_user_data.id = ? AND users.log_in_Status = ?`, [recordId, 1]);
 
         if (result?.affectedRows > 0) {
             return { succMsg: 'User record deleted successfully.' }
@@ -553,7 +586,7 @@ export async function processErrStr(res, errMsg, nullType) {
     if (errMsg.includes('No changes')) {
         statusCode = 304;
     } 
-    else if (errMsg.includes('required') || errMsg.includes('can only contain')) {
+    else if (errMsg.includes('required') || errMsg.includes('can only contain') || errMsg.includes('must be') || errMsg.includes('valid')) {
         statusCode = 400;
     }
     else if (errMsg.includes('Invalid') || errMsg.includes('Unauthorized') || errMsg.includes('expired')) {
