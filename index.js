@@ -19,7 +19,7 @@ import { addTodoRecord, deleteTodoRecord, generateAccessToken, getAllTodoDates, 
 import verifyJWT from './custom-middleware.js';
 // apply cors middleware to enable cors origin requests.
 app.use(cors({
-    origin: 'http://localhost:3000',
+    origin: 'http://localhost:5173',
     credentials: true
 }));
 
