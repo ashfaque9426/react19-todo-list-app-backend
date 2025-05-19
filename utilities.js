@@ -172,6 +172,8 @@ export async function forgotPassword(userEmail) {
 
         const transporter = nodemailer.createTransport({
             service: 'gmail',
+            port: 465,
+            secure: true,
             auth: {
                 user: process.env.APP_EMAIL,
                 pass: process.env.APP_PASS,
@@ -182,7 +184,19 @@ export async function forgotPassword(userEmail) {
             from: process.env.APP_EMAIL,
             to: userEmail,
             subject: "Update Your Password For Todo List App",
-            html: `<p>Click <a href="${verificationLink}">here</a> to update your password. Your token is valid 5 minutes from now.</p>`
+            html: `
+                <html>
+                    <body style="font-family: Arial, sans-serif; line-height: 1.6;">
+                        <p>Hello ${doesUserExist[0].user_name}, <br> Thank you for signing up for the Todo List App!</p>
+                        <h2>Update Your Passowrd</h2>
+                        <p>Please click the link below to update your todolist app password:</p>
+                        <p><a href="${verificationLink}" style="color: #1a73e8;">Update Passowrd</a></p>
+                        <p>If you did not intend for updating passowrd of todolist app, you can ignore this email.</p>
+                        <hr>
+                        <p style="font-size: 0.9em;">You are receiving this email because you intended to update passowrd of Todo List App.</p>
+                    </body>
+                </html>
+            `
         });
 
         return { succMsg: `Password reset link has been sent to your email address.` };
