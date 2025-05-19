@@ -151,11 +151,11 @@ export async function verifyEmail(token) {
         const email = decoded.email;
 
         // update sql database column email_varified and mark the user as verified
-        const [result] = await pool.query(`UPDATE users SET email_varified = 1 WHERE user_email = ?`, [email]);
+        const [result] = await pool.query(`UPDATE users SET email_varified = 1 WHERE user_email = ? AND email_varified = ?`, [email, 0]);
 
         // if no rows were affected, it means the user was not found or already verified
         if (result.affectedRows === 0) {
-            return { errMsg: "Update verification information failed. Please try again later." };
+            return { errMsg: "No user found with that email and unverified status." };
         }
 
         return { succMsg: 'Email verified successfully!' };
@@ -630,13 +630,16 @@ export async function processErrStr(res, errMsg, nullType) {
     if (errMsg.includes('No changes')) {
         statusCode = 304;
     }
+    else if (errMsg.includes('not exist') || errMsg.includes("No user found")) {
+        statusCode = 404;
+    }
     else if (errMsg.includes('required') || errMsg.includes('can only contain') || errMsg.includes('must be') || errMsg.includes('valid')) {
         statusCode = 400;
     }
     else if (errMsg.includes('Invalid') || errMsg.includes('Unauthorized') || errMsg.includes('expired')) {
         statusCode = 401;
     }
-    else if (errMsg.includes('already exists') || errMsg.includes('not match') || errMsg.includes('not exist') || errMsg.includes('log out first') || errMsg.includes('already logged in') || errMsg.includes('already logged out')) {
+    else if (errMsg.includes('already exists') || errMsg.includes('not match') || errMsg.includes('log out first') || errMsg.includes('already logged in') || errMsg.includes('already logged out')) {
         statusCode = 409;
     }
 
