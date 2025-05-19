@@ -85,6 +85,8 @@ export async function register(userName, userEmail, userPassword) {
 
             const transporter = nodemailer.createTransport({
                 service: 'gmail',
+                port: 465,
+                secure: true,
                 auth: {
                     user: process.env.APP_EMAIL,
                     pass: process.env.APP_PASS,
@@ -95,7 +97,19 @@ export async function register(userName, userEmail, userPassword) {
                 from: process.env.APP_EMAIL,
                 to: userEmail,
                 subject: "Verify Your Email For Todo List App",
-                html: `<p>Click <a href="${verificationLink}">here</a> to verify your email.</p>`
+                html: `
+                    <html>
+                        <body style="font-family: Arial, sans-serif; line-height: 1.6;">
+                            <h2>Verify Your Email</h2>
+                            <p>Hello ${userName}, <br> Thank you for signing up for the Todo List App!</p>
+                            <p>Please click the link below to verify your email address:</p>
+                            <p><a href="${verificationLink}" style="color: #1a73e8;">Verify Email</a></p>
+                            <p>If you did not sign up for this account, you can ignore this email.</p>
+                            <hr>
+                            <p style="font-size: 0.9em;">You are receiving this email because you signed up for the Todo List App.</p>
+                        </body>
+                    </html>
+                `
             });
 
             return { succMsg: `User Registration Successfull. An verification email has sent to user and User Record has been added to database successfully.` };
@@ -443,7 +457,7 @@ export async function addTodoRecord(date, title, description, time, status, user
         if (result.insertId && result.affectedRows > 0) {
             return { succMsg: "Todolist record added to the database successfully." }
         }
-        
+
         return { errMsg: "Something went wrong while adding todolist record to the database. Please try again later." };
     } catch (err) {
         console.error("Database error:", err.message);
@@ -556,7 +570,7 @@ export async function modifyTodoRecord(date, title, description, time, status, r
 // detele todolist record
 export async function deleteTodoRecord(recordId) {
     // check recordId patameter is a number type. if not return a error message.
-    if(isNaN(recordId)) return { errMsg: "userId and recordId parameter value must be in number type to delete todo list record." };
+    if (isNaN(recordId)) return { errMsg: "userId and recordId parameter value must be in number type to delete todo list record." };
 
     // if log_in_status is 1 then delete the requested record of todo_list_user_data table by id field
     try {
@@ -571,7 +585,7 @@ export async function deleteTodoRecord(recordId) {
         console.error("Database error:", err.message);
         return { errMsg: err.message };
     }
-    
+
 }
 
 // error message
@@ -585,7 +599,7 @@ export async function processErrStr(res, errMsg, nullType) {
     // change if errMsg includes any of the specified string
     if (errMsg.includes('No changes')) {
         statusCode = 304;
-    } 
+    }
     else if (errMsg.includes('required') || errMsg.includes('can only contain') || errMsg.includes('must be') || errMsg.includes('valid')) {
         statusCode = 400;
     }
