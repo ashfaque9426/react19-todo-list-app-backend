@@ -41,6 +41,22 @@ function isNotPastDate(inputDateStr) {
     return inputDate >= today;
 }
 
+// add 5 minutes to the current time
+function addMinutesToCurrentTime(minutesToAdd) {
+    const date = new Date(); // current date and time
+    date.setMinutes(date.getMinutes() + minutesToAdd);
+
+    // Format to 12-hour time with AM/PM
+    let hours = date.getHours();
+    const minutes = date.getMinutes().toString().padStart(2, '0');
+    const ampm = hours >= 12 ? 'PM' : 'AM';
+
+    hours = hours % 12;
+    if (hours === 0) hours = 12;
+
+    return `${hours}:${minutes} ${ampm}`;
+}
+
 // login and register
 export async function register(userName, userEmail, userPassword) {
     // safeguard cheking all the parameters
@@ -100,7 +116,7 @@ export async function register(userName, userEmail, userPassword) {
                 html: `
                     <html>
                         <body style="font-family: Arial, sans-serif; line-height: 1.6;">
-                            <h2>Verify Your Email</h2>
+                            <h2>Verify Your Email. Valid until ${addMinutesToCurrentTime(60)}</h2>
                             <p>Hello ${userName}, <br> Thank you for signing up for the Todo List App!</p>
                             <p>Please click the link below to verify your email address:</p>
                             <p><a href="${verificationLink}" style="color: #1a73e8;">Verify Email</a></p>
@@ -188,7 +204,7 @@ export async function forgotPassword(userEmail) {
                 <html>
                     <body style="font-family: Arial, sans-serif; line-height: 1.6;">
                         <p>Hello ${doesUserExist[0].user_name}, <br> Thank you for signing up for the Todo List App!</p>
-                        <h2>Update Your Passowrd</h2>
+                        <h2>Update Your Passowrd. Valid until ${addMinutesToCurrentTime(5)}</h2>
                         <p>Please click the link below to update your todolist app password:</p>
                         <p><a href="${verificationLink}" style="color: #1a73e8;">Update Passowrd</a></p>
                         <p>If you did not intend for updating passowrd of todolist app, you can ignore this email.</p>
