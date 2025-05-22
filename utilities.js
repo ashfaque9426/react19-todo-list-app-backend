@@ -97,7 +97,7 @@ export async function register(userName, userEmail, userPassword) {
         // if user record is created successfully then send the verification email to the user email address and return the success message
         if (result.affectedRows > 0 && result?.insertId) {
             const token = jwt.sign({ email: userEmail }, process.env.APP_SECRET, { expiresIn: '1h' });
-            const verificationLink = `${process.env.SITE_DOMAIN}/api/verify-email?token=${token}`;
+            const verificationLink = `${process.env.HOST_DOMAIN}/api/verify-email?token=${token}`;
 
             const transporter = nodemailer.createTransport({
                 service: 'gmail',
@@ -155,7 +155,7 @@ export async function verifyEmail(token) {
 
         // if no rows were affected, it means the user was not found or already verified
         if (result.affectedRows === 0) {
-            return { errMsg: "No user found with that email and unverified status." };
+            return { errMsg: "No user found with that email with unverified status." };
         }
 
         return { succMsg: 'Email verified successfully!' };
@@ -286,7 +286,7 @@ export async function login(userEmail, userPassword, res) {
         if (passwordMatched) {
             const secret = jwt.sign(payload, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '1h' });
             const refreshToken = jwt.sign(payload, process.env.REFRESH_TOKEN_SECRET, { expiresIn: '7d' });
-            await pool.query(`UPDATE users SET log_in_Status = ? AND refresh_token = ? WHERE id = ?`, [1, refreshToken, doesUserExist[0].id]);
+            await pool.query(`UPDATE users SET log_in_Status = ?, refresh_token = ? WHERE id = ?`, [1, refreshToken, doesUserExist[0].id]);
 
             res.cookie('refreshToken', refreshToken, {
                 httpOnly: true,

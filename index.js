@@ -70,7 +70,7 @@ app.post('/api/register-user', async (req, res) => {
 });
 
 // verify user email api
-app.post('/api/verify-email', async (req, res) => {
+app.get('/api/verify-email', async (req, res) => {
     try {
         // get the token from query string
         const token = req.query.token;
