@@ -315,7 +315,7 @@ app.get('/api/get-todo-dates', verifyJWT, async (req, res) => {
         }
 
         if (dateArr) {
-            return res.status(200).json({ dataArr, errMsg: null });
+            return res.status(200).json({ dateArr, errMsg: null });
         }
 
         return processErrStr(res, "Unexpected error occured during getting all user record's dates from the database table. Please try again later.", "dateArr");

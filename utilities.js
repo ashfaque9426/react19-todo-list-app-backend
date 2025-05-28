@@ -407,7 +407,13 @@ export async function getAllTodoDates(userId) {
 
     try {
         const [rows] = await pool.query(`SELECT todo_list_user_data.todo_date as 'Date' FROM todo_list_user_data JOIN users ON todo_list_user_data.user_id = users.id WHERE todo_list_user_data.user_id = ? AND users.log_in_Status = ?`, [userId, 1]);
-        return { dateArr: rows };
+        
+        if (rows.length === 0) {
+            return { errMsg: "No todo dates found for the user." };
+        }
+
+        const dateArray = rows.map(row => row.Date);
+        return { dateArr: dateArray };
     }
     catch (err) {
         console.error("Database error:", err.message);
@@ -630,7 +636,7 @@ export async function processErrStr(res, errMsg, nullType) {
     if (errMsg.includes('No changes')) {
         statusCode = 304;
     }
-    else if (errMsg.includes('not exist') || errMsg.includes("No user found")) {
+    else if (errMsg.includes('not exist') || errMsg.includes("found")) {
         statusCode = 404;
     }
     else if (errMsg.includes('required') || errMsg.includes('can only contain') || errMsg.includes('must be') || errMsg.includes('valid')) {
