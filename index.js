@@ -198,6 +198,7 @@ app.patch('/api/user-login', async (req, res) => {
 app.post('/api/refresh-access-token', async (req, res) => {
     try {
         const refreshToken = req.cookies.refreshToken;
+        
         if (!refreshToken) return processErrStr(res, "Invalid Refresh Token.", "accessToken");
 
         const { accessToken, errMsg } = await generateAccessToken(res, refreshToken);
@@ -218,14 +219,14 @@ app.post('/api/refresh-access-token', async (req, res) => {
 });
 
 // user logout api
-app.patch('/api/user-logout', verifyJWT, async (req, res) => {
+app.patch('/api/user-logout', async (req, res) => {
     try {
         // get the user email and refresh token from req.body object
         const { userEmail } = req.body;
 
         // check all values
-        if (!userEmail || req.decoded.userEmail !== userEmail) {
-            return processErrStr(res, `Invalid user email found. Unable to logout the user. `, "succMsg");
+        if (!userEmail) {
+            return processErrStr(res, `No user email found. Unable to logout the user. `, "succMsg");
         }
 
         // logout user

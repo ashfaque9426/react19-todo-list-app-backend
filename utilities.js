@@ -5,6 +5,9 @@ import dotenv from 'dotenv';
 import nodemailer from 'nodemailer';
 dotenv.config();
 
+const DomainForCookie = process.env.NODE_ENV === 'production' ? process.env.SITE_DOMAIN : 'localhost';
+const SecureCookie = process.env.NODE_ENV === 'production' ? true : false;
+
 // hash password function
 async function hashPassword(password) {
     const salt = await bcrypt.genSalt(11);
@@ -183,7 +186,7 @@ export async function forgotPassword(userEmail) {
         }
 
         // send the verification email to the user email address and return the success message
-        const token = jwt.sign({ email: userEmail }, process.env.APP_SECRETT, { expiresIn: '5m' });
+        const token = jwt.sign({ email: userEmail }, process.env.APP_SECRETT, { expiresIn: '1h' });
         const verificationLink = `${process.env.SITE_DOMAIN}/update-password?token=${token}`;
 
         const transporter = nodemailer.createTransport({
@@ -291,7 +294,8 @@ export async function login(userEmail, userPassword, res) {
             res.cookie('refreshToken', refreshToken, {
                 httpOnly: true,
                 sameSite: 'Lax',
-                secure: false,
+                secure: SecureCookie,
+                domain: DomainForCookie,
                 path: '/api',
                 maxAge: 7 * 24 * 60 * 60 * 1000
             });
@@ -309,6 +313,7 @@ export async function login(userEmail, userPassword, res) {
 // refresh token
 export async function generateAccessToken(res, token) {
     if (!res || !token) {
+        console.log("here");
         return { errMsg: `${!res ? "Response Object is required to generate new access token." : "Invalid Refresh Token."}` };
     }
 
@@ -316,16 +321,16 @@ export async function generateAccessToken(res, token) {
         const payload = jwt.verify(token, process.env.REFRESH_TOKEN_SECRET);
 
         // Optional DB check (recommended)
-        const [users] = await pool.query("SELECT * FROM users WHERE id = ?", [payload.id]);
+        const [users] = await pool.query("SELECT * FROM users WHERE id = ?", [payload.userId]);
 
         if (!users.length || users[0].refresh_token !== token) {
-            return { errMsg: "Invalid Refresh Token." };
+            return { errMsg: !users.length ? "User not found." : "Invalid Refresh Token." };
         }
 
         const newAccessToken = jwt.sign(
             { userId: users[0].id, userName: users[0].user_name, userEmail: users[0].user_email },
             process.env.ACCESS_TOKEN_SECRET,
-            { expiresIn: '15m' }
+            { expiresIn: '1h' }
         );
 
         return { accessToken: newAccessToken };
@@ -333,7 +338,8 @@ export async function generateAccessToken(res, token) {
         res.clearCookie('refreshToken', {
             httpOnly: true,
             sameSite: 'Lax',
-            secure: false,
+            secure: SecureCookie,
+            domain: DomainForCookie,
             path: '/api'
         });
         return { errMsg: "Invalid Refresh Token." };
@@ -342,19 +348,19 @@ export async function generateAccessToken(res, token) {
 
 // logout
 export async function logout(userEmail, req, res) {
-    if (!userEmail || !req || !res) {
-        return { errMsg: `${!userEmail ? "userEmail" : !req ? "Request Object" : "Response Object"} is required to log out the user.` };
+    if (!userEmail || !req) {
+        return { errMsg: `${!userEmail ? "User Email" : !res ? "Response Object" : "Request Object" } is required to log out the user.` };
     }
 
     try {
         // check if the user is logged in or not by checking the log_in_Status field in the database
-        const [doesUserExist] = await pool.query(`SELECT log_in_Status FROM users WHERE user_email = ?`, [userEmail]);
+        const [doesUserExist] = await pool.query(`SELECT log_in_Status, refresh_token FROM users WHERE user_email = ?`, [userEmail]);
 
         // if user not found or logged out already then retrun the error message
         if (doesUserExist.length === 0) {
             return { errMsg: "The user you are trying to log out does not exist in the database." };
-        } else if (doesUserExist[0].log_in_Status === 0) {
-            return { errMsg: "The user you are trying to log out is already logged out from his account." };
+        } else if (doesUserExist[0].log_in_Status === 0 || doesUserExist[0].refresh_token !== res.cookies.refreshToken) {
+            return { errMsg: `${doesUserExist[0].log_in_Status === 0 ? "The user you are trying to log out is already logged out from the account." : "Invalid Refresh Token." }` };
         }
 
         // now update the login status to the database.
@@ -362,17 +368,13 @@ export async function logout(userEmail, req, res) {
 
         // if successfully updated the logged out field in the database then return the success message else the error message.
         if (updateResult?.affectedRows > 0 && updateResult?.changedRows > 0) {
-            // look for the refresh token in the cookies and clear it if it exists
-            const refreshToken = req.cookies.refreshToken;
-            if (refreshToken) {
-                res.clearCookie('refreshToken', {
-                    httpOnly: true,
-                    sameSite: 'Lax',
-                    secure: false,
-                    path: '/api'
-                });
-            }
-
+            res.clearCookie('refreshToken', {
+                httpOnly: true,
+                sameSite: 'Lax',
+                secure: SecureCookie,
+                domain: DomainForCookie,
+                path: '/api'
+            });
             return { succMsg: "User logged out successfully." };
         } else {
             return { errMsg: "Something went wrong when trying to log out the user. Please try again." };
