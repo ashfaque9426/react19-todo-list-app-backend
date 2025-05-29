@@ -100,7 +100,7 @@ export async function register(userName, userEmail, userPassword) {
         // if user record is created successfully then send the verification email to the user email address and return the success message
         if (result.affectedRows > 0 && result?.insertId) {
             const token = jwt.sign({ email: userEmail }, process.env.APP_SECRET, { expiresIn: '1h' });
-            const verificationLink = `${process.env.HOST_DOMAIN}/api/verify-email?token=${token}`;
+            const verificationLink = `${process.env.HOST_URL}/api/verify-email?token=${token}`;
 
             const transporter = nodemailer.createTransport({
                 service: 'gmail',
@@ -187,7 +187,7 @@ export async function forgotPassword(userEmail) {
 
         // send the verification email to the user email address and return the success message
         const token = jwt.sign({ email: userEmail }, process.env.APP_SECRETT, { expiresIn: '1h' });
-        const verificationLink = `${process.env.SITE_DOMAIN}/update-password?token=${token}`;
+        const verificationLink = `${process.env.SITE_URL}/update-password?token=${token}`;
 
         const transporter = nodemailer.createTransport({
             service: 'gmail',
