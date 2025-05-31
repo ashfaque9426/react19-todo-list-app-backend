@@ -254,7 +254,7 @@ app.patch('/api/user-logout', async (req, res) => {
 app.get('/api/get-todo-records', verifyJWT, async (req, res) => {
     try {
         // store the value for user email, date, title
-        const userId = req.query.userId;
+        const userId = parseInt(req.query.userId);
         const date = req.query.date;
         const title = req.query.title;
 
@@ -304,7 +304,7 @@ app.get('/api/get-todo-records', verifyJWT, async (req, res) => {
 
 app.get('/api/get-todo-dates', verifyJWT, async (req, res) => {
     try {
-        const userId = req.query.userId;
+        const userId = parseInt(req.query.userId);
         if (!userId || req.decoded.userId !== userId) {
             return processErrStr(res, `${!userId ? "User id is required to get todo records" : "Invalid user id detected. Todo records access denied."}`, "dateArr");
         }

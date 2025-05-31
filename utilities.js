@@ -355,11 +355,11 @@ export async function logout(userEmail, req, res) {
     try {
         // check if the user is logged in or not by checking the log_in_Status field in the database
         const [doesUserExist] = await pool.query(`SELECT log_in_Status, refresh_token FROM users WHERE user_email = ?`, [userEmail]);
-
+        
         // if user not found or logged out already then retrun the error message
         if (doesUserExist.length === 0) {
             return { errMsg: "The user you are trying to log out does not exist in the database." };
-        } else if (doesUserExist[0].log_in_Status === 0 || doesUserExist[0].refresh_token !== res.cookies.refreshToken) {
+        } else if (doesUserExist[0].log_in_Status === 0 || doesUserExist[0].refresh_token !== req.cookies.refreshToken) {
             return { errMsg: `${doesUserExist[0].log_in_Status === 0 ? "The user you are trying to log out is already logged out from the account." : "Invalid Refresh Token." }` };
         }
 
@@ -395,6 +395,10 @@ export async function getTodoListRecord(userId) {
     try {
         const [rows] = await pool.query(`SELECT todo_list_user_data.id as 'ID', todo_list_user_data.todo_date as 'Date', todo_list_user_data.todo_title as 'Title', todo_description as 'Description', user_id as 'UserID'
 FROM todo_list_user_data JOIN users ON todo_list_user_data.user_id = users.id WHERE todo_list_user_data.user_id = ? AND users.log_in_Status = ?`, [userId, 1]);
+
+        if (rows.length === 0) {
+            return { errMsg: "No record is found that get matched with your credentials in the database." };
+        }
         return { dataArr: rows };
     }
     catch (err) {
@@ -411,7 +415,7 @@ export async function getAllTodoDates(userId) {
         const [rows] = await pool.query(`SELECT todo_list_user_data.todo_date as 'Date' FROM todo_list_user_data JOIN users ON todo_list_user_data.user_id = users.id WHERE todo_list_user_data.user_id = ? AND users.log_in_Status = ?`, [userId, 1]);
         
         if (rows.length === 0) {
-            return { errMsg: "No todo dates found for the user." };
+            return { errMsg: "No todo date is found that get matched with your credentials in the database." };
         }
 
         const dateArray = rows.map(row => row.Date);
@@ -453,6 +457,9 @@ FROM todo_list_user_data JOIN users ON todo_list_user_data.user_id = users.id WH
     // try to query to the database if get the result then return the value or return an error message
     try {
         const [rows] = await pool.query(queryStr, params);
+        if (rows.length === 0) {
+            return { errMsg: "No todo records are found that get matched with your credentials." };
+        }
         return { dataArr: rows };
     } catch (err) {
         console.error("Database error:", err.message);
@@ -515,7 +522,7 @@ export async function getTodoRecord(recordId) {
         const [rows] = await pool.query(`SELECT * FROM todo_list_user_data JOIN users ON todo_list_user_data.user_id = users.id WHERE todo_list_user_data.id = ? AND users.log_in_Status = ?`, [recordId, 1]);
 
         if (rows.length === 0) {
-            return { errMsg: "The record you are trying to get does not exist in the database." };
+            return { errMsg: "No record is found that get matched with your credentials in the database." };
         }
 
         if (!isNotPastDate(rows[0].todo_date)) {
@@ -635,7 +642,10 @@ export async function processErrStr(res, errMsg, nullType) {
     let statusCode = 500;
 
     // change if errMsg includes any of the specified string
-    if (errMsg.includes('No changes')) {
+    if (errMsg.includes('found that get matched with your credentials')) {
+        statusCode = 200;
+    }
+    else if (errMsg.includes('No changes')) {
         statusCode = 304;
     }
     else if (errMsg.includes('not exist') || errMsg.includes("found")) {
