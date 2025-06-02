@@ -415,7 +415,7 @@ export async function getAllTodoDates(userId) {
         const [rows] = await pool.query(`SELECT todo_list_user_data.todo_date as 'Date' FROM todo_list_user_data JOIN users ON todo_list_user_data.user_id = users.id WHERE todo_list_user_data.user_id = ? AND users.log_in_Status = ?`, [userId, 1]);
         
         if (rows.length === 0) {
-            return { errMsg: "No todo date is found that get matched with your credentials in the database." };
+            return { dateArr: [] };
         }
 
         const dateArray = rows.map(row => row.Date);
