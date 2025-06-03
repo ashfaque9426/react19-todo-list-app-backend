@@ -5,8 +5,24 @@ import dotenv from 'dotenv';
 import nodemailer from 'nodemailer';
 dotenv.config();
 
+// Set the domain and secure cookie based on the environment
+// If in production, use the domain from environment variables; otherwise, use localhost
 const DomainForCookie = process.env.NODE_ENV === 'production' ? process.env.SITE_DOMAIN : 'localhost';
 const SecureCookie = process.env.NODE_ENV === 'production' ? true : false;
+
+// capitalize the first letter of a string
+function capitalize(str) {
+    if (!str) return '';
+    return str.charAt(0).toUpperCase() + str.slice(1);
+}
+
+// capitalize the first letter of each word in a string
+function capitalizeWords(str) {
+    return str
+        .split(' ')
+        .map(word => capitalize(word))
+        .join(' ');
+}
 
 // hash password function
 async function hashPassword(password) {
@@ -386,20 +402,48 @@ export async function logout(userEmail, req, res) {
 }
 
 // get todo list record for a user
-export async function getTodoListRecord(userId) {
-    // if user log_in_status is 1 then give the user back the record form todo_list_user_data table
+export async function getTodoListData(userId, date, title) {
+    // check the first parameter as a number available or not if not return error message
     // otherwise return an error message
 
     if (isNaN(userId)) return { errMsg: "User Id parameter value as a number required for getting the todo list records for the user." };
+    if(!date || !title) return { errMsg: "Date and Title parameter values are required to get todo list records." };
+    else if (date && typeof date !== 'string' && !date.match(/^\d{4}-\d{2}-\d{2}/)) return { errMsg: "Date parameter value does not match the format YYYY-MM-DD to get todo list records." };
+    if (title && typeof title !== 'string') return { errMsg: "Title parameter value as a string is required to get todo list records." };
 
     try {
+        // try to fetch user requested data via user credentials
         const [rows] = await pool.query(`SELECT todo_list_user_data.id as 'ID', todo_list_user_data.todo_date as 'Date', todo_list_user_data.todo_title as 'Title', todo_description as 'Description', user_id as 'UserID'
-FROM todo_list_user_data JOIN users ON todo_list_user_data.user_id = users.id WHERE todo_list_user_data.user_id = ? AND users.log_in_Status = ?`, [userId, 1]);
+FROM todo_list_user_data JOIN users ON todo_list_user_data.user_id = users.id WHERE todo_list_user_data.user_id = ? AND todo_list_user_data.todo_date = ? AND todo_list_user_data.todo_title = ? AND users.log_in_Status = ?`, [userId, date, title, 1]);
 
+        // if no rows are returned then return the error message
         if (rows.length === 0) {
             return { errMsg: "No record is found that get matched with your credentials in the database." };
         }
-        return { dataArr: rows };
+
+        // if rows are returned then process the data and return the data
+        // create an array to hold the todo list data
+        const tdLSTArr = [];
+
+        // loop through the rows and create an object for each row
+        // if the first row is not the same as the previous row then create a new object and push it to the array
+        rows.forEach((row, i) => {
+            if(i === 0 || (i > 0 && rows[i - 1].todo_title !== row.todo_title)) {
+                // create a new object with the required fields and push it to the array
+                const todoObj = {
+                    Date: row.todo_date,
+                    Title: row.todo_title,
+                    Number: 1
+                }
+                tdLSTArr.push(todoObj);
+            }
+            else if(i > 0 && rows[i - 1].todo_title === row.todo_title) {
+                const lastTodoObj = tdLSTArr[tdLSTArr.length - 1];
+                lastTodoObj.Number += 1;
+            }
+        });
+
+        return { cardDataArr: tdLSTArr };
     }
     catch (err) {
         console.error("Database error:", err.message);
@@ -476,6 +520,9 @@ export async function addTodoRecord(date, title, description, time, status, user
     if (typeof status !== 'string') return { errMsg: "status parameter value as a string required for adding todos to the record." };
     if (status !== 'completed' && status !== 'not completed') return { errMsg: "status parameter value must be either completed or not completed for adding todos to the record." };
 
+    // capitalize the first letter of each word in the title
+    const upperCasedTitle = capitalizeWords(title);
+
     // check if the date is not a past date
     if (!isNotPastDate(date)) return { errMsg: "The date you are trying to add is in the past. Please provide a valid date." };
 
@@ -497,7 +544,7 @@ export async function addTodoRecord(date, title, description, time, status, user
 
         await pool.query(createTableQuery);
 
-        const [result] = await pool.query(`INSERT INTO todo_list_user_data (todo_date, todo_title, todo_description, todo_time, todo_status, user_id) SELECT ?, ?, ?, ?, ? id FROM users WHERE id = ? AND log_in_Status = ?`, [date, title, description, time, status, userId, 1]);
+        const [result] = await pool.query(`INSERT INTO todo_list_user_data (todo_date, todo_title, todo_description, todo_time, todo_status, user_id) SELECT ?, ?, ?, ?, ? id FROM users WHERE id = ? AND log_in_Status = ?`, [date, upperCasedTitle, description, time, status, userId, 1]);
 
         if (result.insertId && result.affectedRows > 0) {
             return { succMsg: "Todolist record added to the database successfully." }

@@ -15,7 +15,7 @@ dotenv.config();
 import cors from 'cors';
 
 // import custom middleware and utility functions and other imports
-import { addTodoRecord, deleteTodoRecord, generateAccessToken, getAllTodoDates, getFilteredTodoList, getTodoRecord, login, logout, modifyTodoRecord, processErrStr, register, updatePassword, verifyEmail } from './utilities.js';
+import { addTodoRecord, deleteTodoRecord, generateAccessToken, getAllTodoDates, getFilteredTodoList, getTodoListData, getTodoRecord, login, logout, modifyTodoRecord, processErrStr, register, updatePassword, verifyEmail } from './utilities.js';
 import verifyJWT from './custom-middleware.js';
 // apply cors middleware to enable cors origin requests.
 app.use(cors({
@@ -302,6 +302,40 @@ app.get('/api/get-todo-records', verifyJWT, async (req, res) => {
     }
 });
 
+// get all todo list data by date and title
+app.get('/api/get-todo-lists-by-date-title', verifyJWT, async (req, res) => {
+    try {
+        const userId = parseInt(req.query.userId);
+        const date = req.query.date;
+        const title = req.query.title;
+
+        if (!userId || req.decoded.userId !== userId) {
+            return processErrStr(res, `${!userId ? "User id is required to get todo records" : "Invalid user id detected. Todo records access denied."}`, "cardDataArr");
+        }
+
+        if (!date || !title) {
+            return processErrStr(res, "Either date or title is required to get todo records.", "cardDataArr");
+        }
+
+        const { cardDataArr, errMsg } = await getTodoListData(userId, date, title);
+
+        if (errMsg) {
+            return processErrStr(res, errMsg, "cardDataArr");
+        }
+
+        if (cardDataArr) {
+            return res.status(200).json({ cardDataArr, errMsg: null });
+        }
+
+        return processErrStr(res, "Unexpected error occured during getting all user record's requested data from the database table. Please try again later.", "cardDataArr");
+
+    } catch (err) {
+        console.error("Fetching todo dates error:", err);
+        return processErrStr(res, "Unexpected Server error occured during the fetch process of requested todo record data. Please try again later.", "cardDataArr");
+    }
+});
+
+// to get all users todo dates from database
 app.get('/api/get-todo-dates', verifyJWT, async (req, res) => {
     try {
         const userId = parseInt(req.query.userId);
