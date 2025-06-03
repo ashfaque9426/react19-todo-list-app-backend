@@ -302,22 +302,21 @@ app.get('/api/get-todo-records', verifyJWT, async (req, res) => {
     }
 });
 
-// get all todo list data by date and title
-app.get('/api/get-todo-lists-by-date-title', verifyJWT, async (req, res) => {
+// get all todo list data by date
+app.get('/api/get-todo-lists-by-date', verifyJWT, async (req, res) => {
     try {
         const userId = parseInt(req.query.userId);
         const date = req.query.date;
-        const title = req.query.title;
 
         if (!userId || req.decoded.userId !== userId) {
             return processErrStr(res, `${!userId ? "User id is required to get todo records" : "Invalid user id detected. Todo records access denied."}`, "cardDataArr");
         }
 
-        if (!date || !title) {
-            return processErrStr(res, "Either date or title is required to get todo records.", "cardDataArr");
+        if (!date) {
+            return processErrStr(res, "Date is required to get todo records.", "cardDataArr");
         }
 
-        const { cardDataArr, errMsg } = await getTodoListData(userId, date, title);
+        const { cardDataArr, errMsg } = await getTodoListData(userId, date);
 
         if (errMsg) {
             return processErrStr(res, errMsg, "cardDataArr");

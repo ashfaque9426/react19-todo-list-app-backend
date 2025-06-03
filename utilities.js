@@ -402,19 +402,17 @@ export async function logout(userEmail, req, res) {
 }
 
 // get todo list record for a user
-export async function getTodoListData(userId, date, title) {
+export async function getTodoListData(userId, date) {
     // check the first parameter as a number available or not if not return error message
     // otherwise return an error message
 
     if (isNaN(userId)) return { errMsg: "User Id parameter value as a number required for getting the todo list records for the user." };
-    if(!date || !title) return { errMsg: "Date and Title parameter values are required to get todo list records." };
-    else if (date && typeof date !== 'string' && !date.match(/^\d{4}-\d{2}-\d{2}/)) return { errMsg: "Date parameter value does not match the format YYYY-MM-DD to get todo list records." };
-    if (title && typeof title !== 'string') return { errMsg: "Title parameter value as a string is required to get todo list records." };
+    if (!date || typeof date !== 'string' || !date.match(/^\d{4}-\d{2}-\d{2}/)) return { errMsg: "Date parameter value does not match the format YYYY-MM-DD to get todo list records." };
 
     try {
         // try to fetch user requested data via user credentials
         const [rows] = await pool.query(`SELECT todo_list_user_data.id as 'ID', todo_list_user_data.todo_date as 'Date', todo_list_user_data.todo_title as 'Title', todo_description as 'Description', user_id as 'UserID'
-FROM todo_list_user_data JOIN users ON todo_list_user_data.user_id = users.id WHERE todo_list_user_data.user_id = ? AND todo_list_user_data.todo_date = ? AND todo_list_user_data.todo_title = ? AND users.log_in_Status = ?`, [userId, date, title, 1]);
+FROM todo_list_user_data JOIN users ON todo_list_user_data.user_id = users.id WHERE todo_list_user_data.user_id = ? AND todo_list_user_data.todo_date = ? AND users.log_in_Status = ?`, [userId, date, 1]);
 
         // if no rows are returned then return the error message
         if (rows.length === 0) {
