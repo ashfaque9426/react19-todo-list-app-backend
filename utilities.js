@@ -542,7 +542,7 @@ export async function addTodoRecord(date, title, description, time, status, user
 
         await pool.query(createTableQuery);
 
-        const [result] = await pool.query(`INSERT INTO todo_list_user_data (todo_date, todo_title, todo_description, todo_time, todo_status, user_id) SELECT ?, ?, ?, ?, ? id FROM users WHERE id = ? AND log_in_Status = ?`, [date, upperCasedTitle, description, time, status, userId, 1]);
+        const [result] = await pool.query(`INSERT INTO todo_list_user_data (todo_date, todo_title, todo_description, todo_time, todo_status, user_id) SELECT ?, ?, ?, ?, ?, id FROM users WHERE id = ? AND log_in_Status = ?`, [date, upperCasedTitle, description, time, status, userId, 1]);
 
         if (result.insertId && result.affectedRows > 0) {
             return { succMsg: "Todolist record added to the database successfully." }
