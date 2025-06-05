@@ -431,6 +431,8 @@ export async function getTodoListData(userId, date) {
 
                     // adjust index after removal
                     j--;
+                } else {
+                    rows[j].Number = 1;
                 }
             }
         }
