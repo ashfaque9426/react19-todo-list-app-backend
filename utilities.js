@@ -479,7 +479,7 @@ export async function getFilteredTodoList(userId, date = "", title = "") {
     else if ((date && typeof date !== 'string') || (title && typeof title !== 'string')) return { errMsg: `${(date ? 'date' : 'title')} parameter values is required as strings to get filtered todolist records.` };
     if (date && !date.match(/^\d{4}-\d{2}-\d{2}/)) return { errMsg: "Date parameter value does not match the format YYYY-MM-DD to get filtered todolist records" };
 
-    let queryStr = `SELECT todo_list_user_data.id as 'ID', todo_list_user_data.todo_date as 'Date', todo_list_user_data.todo_title as 'Title', todo_description as 'Description', user_id as 'UserID'
+    let queryStr = `SELECT todo_list_user_data.id as 'ID', todo_list_user_data.todo_date as 'Date', todo_list_user_data.todo_title as 'Title', todo_description as 'Description', todo_time as 'Time', todo_status as 'Status', user_id as 'UserID'
 FROM todo_list_user_data JOIN users ON todo_list_user_data.user_id = users.id WHERE todo_list_user_data.user_id = ? AND users.log_in_Status = ?`;
 
     // set the initial param array
@@ -541,6 +541,12 @@ export async function addTodoRecord(date, title, description, time, status, user
             `;
 
         await pool.query(createTableQuery);
+
+        const [doesRowExist] = await pool.query(`SELECT todo_date, todo_time FROM todo_list_user_data WHERE todo_date = ? AND todo_time = ? AND user_id = ?`, [date, time, userId]);
+
+        if(doesRowExist.length > 0) {
+            return { errMsg: "A record with the same date and time already exists for this user. Please choose a different date or time." };
+        }
 
         const [result] = await pool.query(`INSERT INTO todo_list_user_data (todo_date, todo_title, todo_description, todo_time, todo_status, user_id) SELECT ?, ?, ?, ?, ?, id FROM users WHERE id = ? AND log_in_Status = ?`, [date, upperCasedTitle, description, time, status, userId, 1]);
 
