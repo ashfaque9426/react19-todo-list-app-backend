@@ -411,37 +411,31 @@ export async function getTodoListData(userId, date) {
 
     try {
         // try to fetch user requested data via user credentials
-        const [rows] = await pool.query(`SELECT todo_list_user_data.id as 'ID', todo_list_user_data.todo_date as 'Date', todo_list_user_data.todo_title as 'Title', todo_description as 'Description', user_id as 'UserID'
-FROM todo_list_user_data JOIN users ON todo_list_user_data.user_id = users.id WHERE todo_list_user_data.user_id = ? AND todo_list_user_data.todo_date = ? AND users.log_in_Status = ?`, [userId, date, 1]);
+        const [rows] = await pool.query(`SELECT todo_list_user_data.todo_date as 'Date', todo_list_user_data.todo_title as 'Title' FROM todo_list_user_data JOIN users ON todo_list_user_data.user_id = users.id WHERE todo_list_user_data.user_id = ? AND todo_list_user_data.todo_date = ? AND users.log_in_Status = ?`, [userId, date, 1]);
 
         // if no rows are returned then return the error message
         if (rows.length === 0) {
             return { errMsg: "No record is found that get matched with your credentials in the database." };
         }
+        
+        // loop through the rows array
+        // if the current object title is the same as the previous object title then add number property to the current object and if the number property is already present then increase the number by 1
+        for(let i = 0; i < rows.length; i++) {
+            for (let j = i + 1; j < rows.length; j++) {
+                if (rows[i].Title === rows[j].Title) {
+                    // if the title is the same then increase the number of todos
+                    rows[i].Number = (rows[i].Number || 1) + 1;
 
-        // if rows are returned then process the data and return the data
-        // create an array to hold the todo list data
-        const tdLSTArr = [];
+                    // remove the duplicate row
+                    rows.splice(j, 1);
 
-        // loop through the rows and create an object for each row
-        // if the first row is not the same as the previous row then create a new object and push it to the array
-        rows.forEach((row, i) => {
-            if(i === 0 || (i > 0 && rows[i - 1].todo_title !== row.todo_title)) {
-                // create a new object with the required fields and push it to the array
-                const todoObj = {
-                    Date: row.todo_date,
-                    Title: row.todo_title,
-                    Number: 1
+                    // adjust index after removal
+                    j--;
                 }
-                tdLSTArr.push(todoObj);
             }
-            else if(i > 0 && rows[i - 1].todo_title === row.todo_title) {
-                const lastTodoObj = tdLSTArr[tdLSTArr.length - 1];
-                lastTodoObj.Number += 1;
-            }
-        });
+        }
 
-        return { cardDataArr: tdLSTArr };
+        return { cardDataArr: rows };
     }
     catch (err) {
         console.error("Database error:", err.message);
