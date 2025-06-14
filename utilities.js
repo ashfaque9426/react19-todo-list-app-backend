@@ -421,18 +421,19 @@ export async function getTodoListData(userId, date) {
         // loop through the rows array
         // if the current object title is the same as the previous object title then add number property to the current object and if the number property is already present then increase the number by 1
         for(let i = 0; i < rows.length; i++) {
+            if (!rows[i].Number) {
+                rows[i].Number = 1;
+            }
             for (let j = i + 1; j < rows.length; j++) {
                 if (rows[i].Title === rows[j].Title) {
                     // if the title is the same then increase the number of todos
-                    rows[i].Number = (rows[i].Number || 1) + 1;
+                    rows[i].Number = rows[i].Number + 1;
 
                     // remove the duplicate row
                     rows.splice(j, 1);
 
                     // adjust index after removal
                     j--;
-                } else {
-                    rows[j].Number = 1;
                 }
             }
         }
@@ -450,7 +451,7 @@ export async function getAllTodoDates(userId) {
     if (isNaN(userId)) return { errMsg: "User Id parameter value as a number required for getting the todo list records for the user." };
 
     try {
-        const [rows] = await pool.query(`SELECT todo_list_user_data.todo_date as 'Date' FROM todo_list_user_data JOIN users ON todo_list_user_data.user_id = users.id WHERE todo_list_user_data.user_id = ? AND users.log_in_Status = ?`, [userId, 1]);
+        const [rows] = await pool.query(`SELECT DISTINCT todo_list_user_data.todo_date as 'Date' FROM todo_list_user_data JOIN users ON todo_list_user_data.user_id = users.id WHERE todo_list_user_data.user_id = ? AND users.log_in_Status = ? ORDER BY todo_list_user_data.todo_date DESC`, [userId, 1]);
         
         if (rows.length === 0) {
             return { dateArr: [] };
