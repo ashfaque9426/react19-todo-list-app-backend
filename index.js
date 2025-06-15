@@ -267,7 +267,9 @@ app.get('/api/get-todo-records', verifyJWT, async (req, res) => {
         let returnedValue;
 
         // if date is available fetch by date or if title is available fetch be titme else fetch all data that matches user id.
-        if (date) {
+        if (date && title) {
+            returnedValue = await getFilteredTodoList(userId, date, title);
+        } else if (date) {
             returnedValue = await getFilteredTodoList(userId, date, "");
         } else if (title) {
             returnedValue = await getFilteredTodoList(userId, "", title);

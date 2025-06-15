@@ -471,9 +471,8 @@ export async function getFilteredTodoList(userId, date = "", title = "") {
     // check the first parameter as a number available or not if not return error message
     if (isNaN(userId)) return { errMsg: "User Id parameter value as a number required to get filtered todolist records." };
 
-    // check only date or title parameter value is available as string and if date is available does it meet the regex format /^\d{4}-\d{2}-\d{2}/ if any of the bellow condition failed then return the error message
-    if (date && title) return { errMsg: "Only one, date or title parameter value is required as string, not both at once to get filtered todolist records." };
-    else if ((date && typeof date !== 'string') || (title && typeof title !== 'string')) return { errMsg: `${(date ? 'date' : 'title')} parameter values is required as strings to get filtered todolist records.` };
+    // check date or title parameter value is available as string and if date is available does it meet the regex format /^\d{4}-\d{2}-\d{2}/ if any of the bellow condition failed then return the error message
+    if ((date && typeof date !== 'string') || (title && typeof title !== 'string')) return { errMsg: `${(date ? 'date' : 'title')} parameter values is required as strings to get filtered todolist records.` };
     if (date && !date.match(/^\d{4}-\d{2}-\d{2}/)) return { errMsg: "Date parameter value does not match the format YYYY-MM-DD to get filtered todolist records" };
 
     let queryStr = `SELECT todo_list_user_data.id as 'ID', todo_list_user_data.todo_date as 'Date', todo_list_user_data.todo_title as 'Title', todo_description as 'Description', todo_time as 'Time', todo_status as 'Status', user_id as 'UserID'
