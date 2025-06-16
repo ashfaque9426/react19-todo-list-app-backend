@@ -534,7 +534,7 @@ app.delete('/api/delete-todo-record/:recordId', verifyJWT, async (req, res) => {
         }
 
         // delete the record data
-        const { succMsg, errMsg } = await deleteTodoRecord(recordId);
+        const { succMsg, errMsg } = await deleteTodoRecord(decoded.userId, recordId);
 
         // if error occured return the error message.
         if (errMsg) {

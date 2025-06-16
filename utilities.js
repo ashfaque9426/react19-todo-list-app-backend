@@ -660,13 +660,16 @@ export async function modifyTodoRecord(date, title, description, time, status, r
 }
 
 // detele todolist record
-export async function deleteTodoRecord(recordId) {
+export async function deleteTodoRecord(userId, recordId) {
     // check recordId patameter is a number type. if not return a error message.
     if (isNaN(recordId)) return { errMsg: "userId and recordId parameter value must be in number type to delete todo list record." };
 
+    // check if the recordId is a valid number and if the date is not a past date
+    if (!isNotPastDate(date)) return { errMsg: "The date you are trying to add is in the past. Please provide a valid date." };
+
     // if log_in_status is 1 then delete the requested record of todo_list_user_data table by id field
     try {
-        const [result] = await pool.query(`DELETE todo_list_user_data FROM todo_list_user_data JOIN users on todo_list_user_data.user_id = users.id WHERE todo_list_user_data.id = ? AND users.log_in_Status = ?`, [recordId, 1]);
+        const [result] = await pool.query(`DELETE todo_list_user_data FROM todo_list_user_data JOIN users on todo_list_user_data.user_id = users.id WHERE todo_list_user_data.id = ? AND users.id = ? AND users.log_in_Status = ?`, [recordId, userId, 1]);
 
         if (result?.affectedRows > 0) {
             return { succMsg: 'User record deleted successfully.' }
