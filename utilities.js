@@ -538,10 +538,10 @@ export async function addTodoRecord(date, title, description, time, status, user
 
         await pool.query(createTableQuery);
 
-        const [doesRowExist] = await pool.query(`SELECT todo_date, todo_time FROM todo_list_user_data WHERE todo_date = ? AND todo_time = ? AND user_id = ?`, [date, time, userId]);
+        const [doesRowExist] = await pool.query(`SELECT todo_date, todo_time, todo_title FROM todo_list_user_data WHERE todo_date = ? AND todo_title = ? AND todo_time = ? AND user_id = ?`, [date, title, time, userId]);
 
         if(doesRowExist.length > 0) {
-            return { errMsg: "A record with the same date and time already exists for this user. Please choose a different date or time." };
+            return { errMsg: "A record with the same date, time and title already exists for this user. Please choose a different date or time or title." };
         }
 
         const [result] = await pool.query(`INSERT INTO todo_list_user_data (todo_date, todo_title, todo_description, todo_time, todo_status, user_id) SELECT ?, ?, ?, ?, ?, id FROM users WHERE id = ? AND log_in_Status = ?`, [date, upperCasedTitle, description, time, status, userId, 1]);
