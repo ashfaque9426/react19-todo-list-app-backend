@@ -425,7 +425,7 @@ export async function getTodoListData(userId, date) {
                 rows[i].Number = 1;
             }
             for (let j = i + 1; j < rows.length; j++) {
-                if (rows[i].Title === rows[j].Title) {
+                if ((rows[i].Date === rows[j].Date) && (rows[i].Title === rows[j].Title)) {
                     // if the title is the same then increase the number of todos
                     rows[i].Number = rows[i].Number + 1;
 
