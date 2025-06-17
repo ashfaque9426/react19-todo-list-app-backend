@@ -583,6 +583,28 @@ export async function getTodoRecord(recordId) {
     }
 }
 
+// get todo titles
+export async function getTodoTitles(userId) {
+    // check userId parameter is a number type. if not return a error message.
+    if (isNaN(userId)) return { errMsg: "userId parameter value must be in number type to get todo titles." };
+
+    // get the todo titles and return it or return the error message
+    try {
+        const [rows] = await pool.query(`SELECT DISTINCT todo_list_user_data.todo_date as 'Date', todo_list_user_data.todo_title as 'Title' FROM todo_list_user_data JOIN users ON todo_list_user_data.user_id = users.id WHERE todo_list_user_data.user_id = ? AND users.log_in_Status = ?`, [userId, 1]);
+
+        if (rows.length === 0) {
+            return { titleArr: [] };
+        }
+
+        const titleArray = rows.filter(row => isNotPastDate(row.Date)).map(row => row.Title);
+
+        return { titleArr: titleArray };
+    } catch (err) {
+        console.error("Database error:", err.message);
+        return { errMsg: err.message };
+    }
+}
+
 // modify todoList record
 export async function modifyTodoRecord(date, title, description, time, status, recordId) {
     // check all parameter values otherwise return an error message

@@ -15,7 +15,7 @@ dotenv.config();
 import cors from 'cors';
 
 // import custom middleware and utility functions and other imports
-import { addTodoRecord, deleteTodoRecord, generateAccessToken, getAllTodoDates, getFilteredTodoList, getTodoListData, getTodoRecord, login, logout, modifyTodoRecord, processErrStr, register, updatePassword, verifyEmail } from './utilities.js';
+import { addTodoRecord, deleteTodoRecord, generateAccessToken, getAllTodoDates, getFilteredTodoList, getTodoListData, getTodoRecord, getTodoTitles, login, logout, modifyTodoRecord, processErrStr, register, updatePassword, verifyEmail } from './utilities.js';
 import verifyJWT from './custom-middleware.js';
 // apply cors middleware to enable cors origin requests.
 app.use(cors({
@@ -120,7 +120,7 @@ app.post('/api/forgot-password', async (req, res) => {
         if (succMsg) {
             return res.status(201).json({ succMsg, errMsg: null });
         }
-        
+
         // if any unexpected error occures.
         return processErrStr(res, "Unexpected error occured during sending email for forgot password.", "succMsg");
     } catch (err) {
@@ -133,7 +133,7 @@ app.post('/api/forgot-password', async (req, res) => {
 app.patch('/api/update-password', async (req, res) => {
     try {
         // retirve the values
-        const { token, newPassword }  = req.body;
+        const { token, newPassword } = req.body;
 
         // check all values
         if (!token || !newPassword) {
@@ -198,7 +198,7 @@ app.patch('/api/user-login', async (req, res) => {
 app.post('/api/refresh-access-token', async (req, res) => {
     try {
         const refreshToken = req.cookies.refreshToken;
-        
+
         if (!refreshToken) return processErrStr(res, "Invalid Refresh Token.", "accessToken");
 
         const { accessToken, errMsg } = await generateAccessToken(res, refreshToken);
@@ -207,7 +207,7 @@ app.post('/api/refresh-access-token', async (req, res) => {
             return processErrStr(res, errMsg, "accessToken");
         }
 
-        if (accessToken) {  
+        if (accessToken) {
             return res.status(200).json({ accessToken, errMsg: null });
         }
 
@@ -449,6 +449,38 @@ app.get('/api/get-todo-record', verifyJWT, async (req, res) => {
     } catch (err) {
         console.error("Error while adding todo record:", err);
         return processErrStr(res, "Unexpected Server error occured during getting todo record process. Please try again later.", "recordData");
+    }
+});
+
+// get todo titles by user id
+app.get('/api/get-todo-titles', verifyJWT, async (req, res) => {
+    try {
+        // get the user id from query string
+        const userId = parseInt(req.query.userId);
+
+        // check if user id is available or not
+        if (!userId || req.decoded.userId !== userId) {
+            return processErrStr(res, `${!userId ? "User id is required to get todo titles" : "Invalid user id detected. Todo titles access denied."}`, "titleArr");
+        }
+
+        // get the todo titles by user id
+        const { titleArr, errMsg } = await getTodoTitles(userId);
+
+        // if error message found then send the error message to client
+        if (errMsg) {
+            return processErrStr(res, errMsg, "titleArr");
+        }
+
+        // if todo titles found then send the todo titles to client
+        if (titleArr) {
+            return res.status(200).json({ titleArr, errMsg: null });
+        }
+
+        // if no todo titles found then send the error message to client
+        return processErrStr(res, "Unexpected error occured during getting all user record's titles from the database table. Please try again later.", "titleArr");
+    } catch (err) {
+        console.error("Fetching todo titles error:", err);
+        return processErrStr(res, "Unexpected Server error occured during the fetch process of requested todo titles. Please try again later.", "titleArr");
     }
 });
 
