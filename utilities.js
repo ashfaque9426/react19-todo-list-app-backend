@@ -31,6 +31,7 @@ async function hashPassword(password) {
     return hashedPassword;
 }
 
+// check password function
 async function checkPassword(inputPassword, storedHash) {
     try {
         const isMatch = await bcrypt.compare(inputPassword, storedHash);
@@ -44,6 +45,29 @@ async function checkPassword(inputPassword, storedHash) {
         console.error('Error comparing password:', error);
         return false;
     }
+}
+
+// check if time has passed or not
+function hasDateTimePassed(dateStr, timeStr) {
+    // Parse the time into 24-hour format
+    const [time, modifier] = timeStr.split(' ');
+    let [hours, minutes] = time.split(':').map(Number);
+
+    if (modifier === 'PM' && hours !== 12) {
+        hours += 12;
+    } else if (modifier === 'AM' && hours === 12) {
+        hours = 0;
+    }
+
+    // Create the target Date object
+    const targetDateTime = new Date(dateStr);
+    targetDateTime.setHours(hours, minutes, 0, 0); // set hours, minutes, seconds, milliseconds
+
+    // Get current Date and time
+    const now = new Date();
+
+    // Compare
+    return targetDateTime < now;
 }
 
 // check if the date is today or not
@@ -115,7 +139,7 @@ export async function register(userName, userEmail, userPassword) {
 
         // if user record is created successfully then send the verification email to the user email address and return the success message
         if (result.affectedRows > 0 && result?.insertId) {
-            const token = jwt.sign({ email: userEmail }, process.env.APP_SECRET, { expiresIn: '1h' });
+            const token = jwt.sign({ email: userEmail }, process.env.APP_SECRET, { expiresIn: '5m' });
             const verificationLink = `${process.env.HOST_URL}/api/verify-email?token=${token}`;
 
             const transporter = nodemailer.createTransport({
@@ -135,7 +159,7 @@ export async function register(userName, userEmail, userPassword) {
                 html: `
                     <html>
                         <body style="font-family: Arial, sans-serif; line-height: 1.6;">
-                            <h2>Verify Your Email. Valid until ${addMinutesToCurrentTime(60)}</h2>
+                            <h2>Verify Your Email. Valid until ${addMinutesToCurrentTime(5)}</h2>
                             <p>Hello ${userName}, <br> Thank you for signing up for the Todo List App!</p>
                             <p>Please click the link below to verify your email address:</p>
                             <p><a href="${verificationLink}" style="color: #1a73e8;">Verify Email</a></p>
@@ -202,7 +226,7 @@ export async function forgotPassword(userEmail) {
         }
 
         // send the verification email to the user email address and return the success message
-        const token = jwt.sign({ email: userEmail }, process.env.APP_SECRETT, { expiresIn: '1h' });
+        const token = jwt.sign({ email: userEmail }, process.env.APP_SECRETT, { expiresIn: '5m' });
         const verificationLink = `${process.env.SITE_URL}/update-password?token=${token}`;
 
         const transporter = nodemailer.createTransport({
@@ -303,7 +327,7 @@ export async function login(userEmail, userPassword, res) {
         };
 
         if (passwordMatched) {
-            const secret = jwt.sign(payload, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '1h' });
+            const secret = jwt.sign(payload, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '15m' });
             const refreshToken = jwt.sign(payload, process.env.REFRESH_TOKEN_SECRET, { expiresIn: '7d' });
             await pool.query(`UPDATE users SET log_in_Status = ?, refresh_token = ? WHERE id = ?`, [1, refreshToken, doesUserExist[0].id]);
 
@@ -346,7 +370,7 @@ export async function generateAccessToken(res, token) {
         const newAccessToken = jwt.sign(
             { userId: users[0].id, userName: users[0].user_name, userEmail: users[0].user_email },
             process.env.ACCESS_TOKEN_SECRET,
-            { expiresIn: '1h' }
+            { expiresIn: '15m' }
         );
 
         return { accessToken: newAccessToken };
@@ -518,7 +542,7 @@ export async function addTodoRecord(date, title, description, time, status, user
     const upperCasedTitle = capitalizeWords(title);
 
     // check if the date is not a past date
-    if (!isNotPastDate(date)) return { errMsg: "The date you are trying to add is in the past. Please provide a valid date." };
+    if (hasDateTimePassed(date, time)) return { errMsg: "The record date or time that you are trying to add is in the past. Please provide a valid date." };
 
     // if log_in_status is 1 then add the record to todo_list_user_data table and if table is not created already create the table first
     try {
@@ -615,7 +639,7 @@ export async function modifyTodoRecord(date, title, description, time, status, r
     if (status !== 'completed' && status !== 'not completed') return { errMsg: "status parameter value must be either completed or not completed to modify todo list record." };
 
     // check if the date is not a past date
-    if (!isNotPastDate(date)) return { errMsg: "The date you are trying to add is in the past. Please provide a valid date." };
+    if (hasDateTimePassed(date, time)) return { errMsg: "The record date or time that you are trying to modify is in the past. Please provide a valid date." };
 
     // if log_in_status is 1 then modify the current record of todo_list_user_data table by id field
     try {
@@ -689,6 +713,9 @@ export async function deleteTodoRecord(userId, recordId) {
     // check if the recordId is a valid number and if the date is not a past date
     if (!isNotPastDate(date)) return { errMsg: "The date you are trying to add is in the past. Please provide a valid date." };
 
+    // check if the date is not a past date
+    if (hasDateTimePassed(date, time)) return { errMsg: "The date or time you when you are trying to delete is in the past. Please provide a valid date." };
+
     // if log_in_status is 1 then delete the requested record of todo_list_user_data table by id field
     try {
         const [result] = await pool.query(`DELETE todo_list_user_data FROM todo_list_user_data JOIN users on todo_list_user_data.user_id = users.id WHERE todo_list_user_data.id = ? AND users.id = ? AND users.log_in_Status = ?`, [recordId, userId, 1]);
@@ -729,7 +756,7 @@ export async function processErrStr(res, errMsg, nullType) {
     else if (errMsg.includes('Invalid') || errMsg.includes('Unauthorized') || errMsg.includes('expired')) {
         statusCode = 401;
     }
-    else if (errMsg.includes('already exists') || errMsg.includes('not match') || errMsg.includes('log out first') || errMsg.includes('already logged in') || errMsg.includes('already logged out')) {
+    else if (errMsg.includes('already exists') || errMsg.includes('not match') || errMsg.includes('log out first') || errMsg.includes('already logged in') || errMsg.includes('already logged out') || errMsg.includes('trying to')) {
         statusCode = 409;
     }
 
