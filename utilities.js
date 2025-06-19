@@ -705,6 +705,29 @@ export async function modifyTodoRecord(date, title, description, time, status, r
     }
 }
 
+// complete todo list record
+export async function completeTodoRecord(userId, recordId, date) {
+    // check recordId parameter is a number type. if not return a error message.
+    if (isNaN(userId) || isNaN(recordId)) return { errMsg: "userId and recordId parameter value must be in number type to complete todo list record." };
+
+    // check if the recordId is a valid number and if the date is not a past date
+    if (!isNotPastDate(date)) return { errMsg: "The date you are trying to add is in the past. Please provide a valid date." };
+
+    // if log_in_status is 1 then update the requested record of todo_list_user_data table by id field
+    try {
+        const [result] = await pool.query(`UPDATE todo_list_user_data JOIN users ON todo_list_user_data.user_id = users.id SET todo_status = ? WHERE todo_list_user_data.id = ? AND todo_list_user_data.todo_status = ? AND users.id = ? AND users.log_in_Status = ?`, ['completed', recordId, "not completed", userId, 1]);
+
+        if (result?.affectedRows > 0 && result?.changedRows > 0) {
+            return { succMsg: 'User record completed successfully.' }
+        }
+
+        return { errMsg: "Unable to update todolist record status in the database, It can be due to you are trying to change status of your record which is already set as completed. Please try again later." };
+    } catch (err) {
+        console.error("Database error:", err.message);
+        return { errMsg: err.message };
+    }
+}
+
 // detele todolist record
 export async function deleteTodoRecord(userId, recordId) {
     // check recordId patameter is a number type. if not return a error message.

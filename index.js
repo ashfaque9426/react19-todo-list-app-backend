@@ -15,7 +15,7 @@ dotenv.config();
 import cors from 'cors';
 
 // import custom middleware and utility functions and other imports
-import { addTodoRecord, deleteTodoRecord, generateAccessToken, getAllTodoDates, getFilteredTodoList, getTodoListData, getTodoRecord, getTodoTitles, login, logout, modifyTodoRecord, processErrStr, register, updatePassword, verifyEmail } from './utilities.js';
+import { addTodoRecord, completeTodoRecord, deleteTodoRecord, generateAccessToken, getAllTodoDates, getFilteredTodoList, getTodoListData, getTodoRecord, getTodoTitles, login, logout, modifyTodoRecord, processErrStr, register, updatePassword, verifyEmail } from './utilities.js';
 import verifyJWT from './custom-middleware.js';
 // apply cors middleware to enable cors origin requests.
 app.use(cors({
@@ -538,6 +538,43 @@ app.patch('/api/modify-todo-record', verifyJWT, async (req, res) => {
     } catch (err) {
         console.error("Error while modifying todo record:", err);
         return processErrStr(res, "Unexpected Server error occured during modifying todo record process. Please try again later.", "succMsg");
+    }
+});
+
+// complete todo record api
+app.patch('/api/complete-todo-record', verifyJWT, async (req, res) => {
+    try {
+        // get record id and user id from req.body object
+        const { userId, recordId, date } = req.body;
+
+        // check if record id and user id is available or not
+        if (!userId || !recordId || !date) {
+            return processErrStr(res, "User Id, Record id and date parameter values are required for completing todo record.", "succMsg");
+        }
+
+        // check if the user id is valid or not
+        if (req.decoded.userId !== userId) {
+            return processErrStr(res, "Invalid user id detected. Complete Todo record access denied.", "succMsg");
+        }
+
+        // complete the todo record
+        const { succMsg, errMsg } = await completeTodoRecord(userId, recordId, date);
+
+        // if error message returned from completeTodoRecord then return the error message.
+        if (errMsg) {
+            return processErrStr(res, errMsg, "succMsg");
+        }
+
+        // if success message returned from completeTodoRecord return the success message.
+        if (succMsg) {
+            return res.status(201).json({ succMsg, errMsg: null });
+        }
+
+        // if some unexpected error occured later send user the bellow error message.
+        return processErrStr(res, "Unexpected error occured during completing user record. Please try again later.", "succMsg");
+    } catch (err) {
+        console.error("Error while completing todo record:", err);
+        return processErrStr(res, "Unexpected Server error occured during completing todo record process. Please try again later.", "succMsg");
     }
 });
 
