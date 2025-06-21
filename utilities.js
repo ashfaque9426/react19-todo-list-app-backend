@@ -629,6 +629,35 @@ export async function getTodoTitles(userId) {
     }
 }
 
+// get todo times for todays date
+export async function getTodoTimesForToday(userId) {
+    // check userId parameter is a number type. if not return a error message.
+    if (isNaN(userId)) return { errMsg: "userId parameter value must be in number type to get todo times." };
+    const date = new Date().toISOString().split('T')[0]; // get today's date in YYYY-MM-DD format
+
+    // get the todo times and return it or return the error message
+    try {
+        const [rows] = await pool.query(`SELECT DISTINCT todo_list_user_data.todo_time as 'Time' FROM todo_list_user_data JOIN users ON todo_list_user_data.user_id = users.id WHERE todo_list_user_data.user_id = ? AND todo_list_user_data.todo_date = ? AND users.log_in_Status = ?`, [userId, date, 1]);
+
+        // if no rows are returned then return an empty object
+        if (rows.length === 0) {
+            return { dataObj: {} };
+        }
+
+        // create an object with time as key and value as empty string
+        const dataObj = {
+            date: date,
+            timesArr: rows.map(row => row.Time)
+        };
+        
+        // return the data object
+        return { dataObj: dataObj };
+    } catch (err) {
+        console.error("Database error:", err.message);
+        return { errMsg: err.message };
+    }
+}
+
 // modify todoList record
 export async function modifyTodoRecord(date, title, description, time, status, recordId) {
     // check all parameter values otherwise return an error message

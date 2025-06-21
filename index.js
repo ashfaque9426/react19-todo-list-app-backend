@@ -15,7 +15,7 @@ dotenv.config();
 import cors from 'cors';
 
 // import custom middleware and utility functions and other imports
-import { addTodoRecord, completeTodoRecord, deleteTodoRecord, generateAccessToken, getAllTodoDates, getFilteredTodoList, getTodoListData, getTodoRecord, getTodoTitles, login, logout, modifyTodoRecord, processErrStr, register, updatePassword, verifyEmail } from './utilities.js';
+import { addTodoRecord, completeTodoRecord, deleteTodoRecord, generateAccessToken, getAllTodoDates, getFilteredTodoList, getTodoListData, getTodoRecord, getTodoTimesForToday, getTodoTitles, login, logout, modifyTodoRecord, processErrStr, register, updatePassword, verifyEmail } from './utilities.js';
 import verifyJWT from './custom-middleware.js';
 // apply cors middleware to enable cors origin requests.
 app.use(cors({
@@ -359,6 +359,38 @@ app.get('/api/get-todo-dates', verifyJWT, async (req, res) => {
     } catch (err) {
         console.error("Fetching todo dates error:", err);
         return processErrStr(res, "Unexpected Server error occured during the fetch process of requested todo dates. Please try again later.", "dateArr");
+    }
+});
+
+// get todo times for today
+app.get('/api/get-todo-times-for-today', verifyJWT, async (req, res) => {
+    try {
+        // get the user id from query string
+        const userId = parseInt(req.query.userId);
+
+        // check if user id is available or not
+        if (!userId || req.decoded.userId !== userId) {
+            return processErrStr(res, `${!userId ? "User id is required to get todo times" : "Invalid user id detected. Todo times access denied."}`, "dataObj");
+        }
+
+        // get the todo times by user id
+        const { dataObj, errMsg } = await getTodoTimesForToday(userId);
+
+        // if error message found then send the error message to client
+        if (errMsg) {
+            return processErrStr(res, errMsg, "dataObj");
+        }
+
+        // if todo times found then send the todo times to client
+        if (dataObj) {
+            return res.status(200).json({ dataObj, errMsg: null });
+        }
+
+        // if no todo times found then send the error message to client
+        return processErrStr(res, "Unexpected error occured during getting all user record's times from the database table. Please try again later.", "dataObj");
+    } catch (err) {
+        console.error("Fetching todo times error:", err);
+        return processErrStr(res, "Unexpected Server error occured during the fetch process of requested todo times. Please try again later.", "dataObj");
     }
 });
 
