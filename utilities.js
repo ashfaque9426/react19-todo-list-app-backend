@@ -641,7 +641,7 @@ export async function getTodoTimesForToday(userId) {
 
         // if no rows are returned then return an empty object
         if (rows.length === 0) {
-            return { dataObj: {} };
+            return { dataObj: { date: date, timesArr: [] } };
         }
 
         // create an object with time as key and value as empty string
