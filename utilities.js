@@ -100,6 +100,40 @@ function addMinutesToCurrentTime(minutesToAdd) {
     return `${hours}:${minutes} ${ampm}`;
 }
 
+// sort todo objects by time
+function sortTimeObjects(arr) {
+    return arr.sort((a, b) => {
+        const toMinutes = timeStr => {
+            const [time, modifier] = timeStr.split(" ");
+            let [hours, minutes] = time.split(":").map(Number);
+
+            if (modifier === "PM" && hours !== 12) hours += 12;
+            if (modifier === "AM" && hours === 12) hours = 0;
+
+            return hours * 60 + minutes;
+        };
+
+        return toMinutes(a.Time) - toMinutes(b.Time);
+    });
+}
+
+// sort time array of strings
+function sortTimes(times) {
+    return times.sort((a, b) => {
+        const to24Hour = timeStr => {
+            const [time, modifier] = timeStr.split(" ");
+            let [hours, minutes] = time.split(":").map(Number);
+
+            if (modifier === "PM" && hours !== 12) hours += 12;
+            if (modifier === "AM" && hours === 12) hours = 0;
+
+            return hours * 60 + minutes; // total minutes since midnight
+        };
+
+        return to24Hour(a) - to24Hour(b);
+    });
+}
+
 // login and register
 export async function register(userName, userEmail, userPassword) {
     // safeguard cheking all the parameters
@@ -522,7 +556,9 @@ FROM todo_list_user_data JOIN users ON todo_list_user_data.user_id = users.id WH
         if (rows.length === 0) {
             return { errMsg: "No todo records are found that get matched with your credentials." };
         }
-        return { dataArr: rows };
+
+        const sortedRows = sortTimeObjects(rows);
+        return { dataArr: sortedRows };
     } catch (err) {
         console.error("Database error:", err.message);
         return { errMsg: err.message };
@@ -644,10 +680,15 @@ export async function getTodoTimesForToday(userId) {
             return { dataObj: { date: date, timesArr: [] } };
         }
 
+        const timesArr = rows.map(row => row.Time)
+
+        // sort times array
+        const sortedTimesArr = sortTimes(timesArr);
+
         // create an object with time as key and value as empty string
         const dataObj = {
             date: date,
-            timesArr: rows.map(row => row.Time)
+            timesArr: sortedTimesArr
         };
         
         // return the data object
