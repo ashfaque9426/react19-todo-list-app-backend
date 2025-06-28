@@ -70,10 +70,10 @@ app.post('/api/register-user', async (req, res) => {
 });
 
 // verify user email api
-app.get('/api/verify-email', async (req, res) => {
+app.patch('/api/verify-email', async (req, res) => {
     try {
         // get the token from query string
-        const token = req.query.token;
+        const { token } = req.body;
 
         // check if token is available or not
         if (!token) return processErrStr(res, "Token is required for email verification process.", "succMsg");

@@ -174,7 +174,7 @@ export async function register(userName, userEmail, userPassword) {
         // if user record is created successfully then send the verification email to the user email address and return the success message
         if (result.affectedRows > 0 && result?.insertId) {
             const token = jwt.sign({ email: userEmail }, process.env.APP_SECRET, { expiresIn: '5m' });
-            const verificationLink = `${process.env.HOST_URL}/api/verify-email?token=${token}`;
+            const verificationLink = `${process.env.SITE_URL}/verify-email/${token}`;
 
             const transporter = nodemailer.createTransport({
                 service: 'gmail',
@@ -260,8 +260,8 @@ export async function forgotPassword(userEmail) {
         }
 
         // send the verification email to the user email address and return the success message
-        const token = jwt.sign({ email: userEmail }, process.env.APP_SECRETT, { expiresIn: '5m' });
-        const verificationLink = `${process.env.SITE_URL}/update-password?token=${token}`;
+        const token = jwt.sign({ email: userEmail }, process.env.APP_SECRET, { expiresIn: '5m' });
+        const verificationLink = `${process.env.SITE_URL}/update-password/${token}`;
 
         const transporter = nodemailer.createTransport({
             service: 'gmail',
@@ -307,7 +307,7 @@ export async function updatePassword(token, newPassword) {
     }
 
     try {
-        const decoded = jwt.verify(token, process.env.APP_SECRETT);
+        const decoded = jwt.verify(token, process.env.APP_SECRET);
         const email = decoded.email;
         // if existed return an error message user already existed
         const [doesUserExist] = await pool.query(`SELECT * FROM users WHERE user_email = ?`, [email]);
@@ -846,7 +846,7 @@ export async function processErrStr(res, errMsg, nullType) {
     else if (errMsg.includes('required') || errMsg.includes('can only contain') || errMsg.includes('must be') || errMsg.includes('valid')) {
         statusCode = 400;
     }
-    else if (errMsg.includes('Invalid') || errMsg.includes('Unauthorized') || errMsg.includes('expired')) {
+    else if (errMsg.includes('Invalid') || errMsg.includes('invalid') || errMsg.includes('Unauthorized') || errMsg.includes('unauthorized') || errMsg.includes('expired') || errMsg.includes('Expired')) {
         statusCode = 401;
     }
     else if (errMsg.includes('already exists') || errMsg.includes('not match') || errMsg.includes('log out first') || errMsg.includes('already logged in') || errMsg.includes('already logged out') || errMsg.includes('trying to')) {
