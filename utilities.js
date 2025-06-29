@@ -673,7 +673,7 @@ export async function getTodoTimesForToday(userId) {
 
     // get the todo times and return it or return the error message
     try {
-        const [rows] = await pool.query(`SELECT DISTINCT todo_list_user_data.todo_time as 'Time' FROM todo_list_user_data JOIN users ON todo_list_user_data.user_id = users.id WHERE todo_list_user_data.user_id = ? AND todo_list_user_data.todo_date = ? AND users.log_in_Status = ?`, [userId, date, 1]);
+        const [rows] = await pool.query(`SELECT DISTINCT todo_list_user_data.todo_time as 'Time' FROM todo_list_user_data JOIN users ON todo_list_user_data.user_id = users.id WHERE todo_list_user_data.user_id = ? AND todo_list_user_data.todo_date = ? AND todo_list_user_data.todo_status = ? AND users.log_in_Status = ?`, [userId, date, "not completed", 1]);
 
         // if no rows are returned then return an empty object
         if (rows.length === 0) {
