@@ -15,7 +15,7 @@ dotenv.config();
 import cors from 'cors';
 
 // import custom middleware and utility functions and other imports
-import { addTodoRecord, completeTodoRecord, deleteTodoRecord, generateAccessToken, getAllTodoDates, getFilteredTodoList, getTodoListData, getTodoRecord, getTodoTimesForToday, getTodoTitles, login, logout, modifyTodoRecord, processErrStr, register, updatePassword, verifyEmail } from './utilities.js';
+import { addTodoRecord, completeTodoRecord, deleteTodoRecord, forgotPassword, generateAccessToken, getAllTodoDates, getFilteredTodoList, getTodoListData, getTodoRecord, getTodoTimesForToday, getTodoTitles, login, logout, modifyTodoRecord, processErrStr, register, updatePassword, verifyEmail } from './utilities.js';
 import verifyJWT from './custom-middleware.js';
 // apply cors middleware to enable cors origin requests.
 app.use(cors({
