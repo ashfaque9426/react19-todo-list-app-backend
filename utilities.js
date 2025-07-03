@@ -709,7 +709,7 @@ export async function modifyTodoRecord(date, title, description, time, status, r
     if (status !== 'completed' && status !== 'not completed') return { errMsg: "status parameter value must be either completed or not completed to modify todo list record." };
 
     // check if the date is not a past date
-    if (hasDateTimePassed(date, time)) return { errMsg: "The record date or time that you are trying to modify is in the past. Please provide a valid date." };
+    if (hasDateTimePassed(date, time)) return { errMsg: "The record date or time that you are trying to modify is in the past. Please provide a valid date and time." };
 
     // if log_in_status is 1 then modify the current record of todo_list_user_data table by id field
     try {
