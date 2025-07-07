@@ -14,24 +14,25 @@ dotenv.config();
 // import cors middleware for allow resource sharing to a different domain.
 import cors from 'cors';
 
-// import custom middleware and utility functions and other imports
-import { addTodoRecord, completeTodoRecord, deleteTodoRecord, forgotPassword, generateAccessToken, getAllTodoDates, getFilteredTodoList, getTodoListData, getTodoRecord, getTodoTimesForToday, getTodoTitles, login, logout, modifyTodoRecord, processErrStr, register, updatePassword, verifyEmail } from './utilities.js';
-import verifyJWT from './custom-middleware.js';
+// import cookie-parser middleware to parse cookies from the request.
+import cookieParser from 'cookie-parser';
+app.use(cookieParser());
+
 // apply cors middleware to enable cors origin requests.
 app.use(cors({
     origin: 'http://localhost:5173',
     credentials: true
 }));
 
-// import cookie-parser middleware to parse cookies from the request.
-import cookieParser from 'cookie-parser';
-app.use(cookieParser());
-
 // parse the incoming requests to work with json paylods for post, put and patch requests.
 app.use(express.json());
 
 // define the port for express.js server.
 const port = process.env.PORT || 5000;
+
+// import custom middleware and utility functions and other imports
+import { addTodoRecord, completeTodoRecord, deleteTodoRecord, forgotPassword, generateAccessToken, getAllTodoDates, getFilteredTodoList, getTodoListData, getTodoRecord, getTodoTimesForToday, getTodoTitles, login, logout, modifyTodoRecord, processErrStr, register, updatePassword, verifyEmail } from './utilities.js';
+import verifyJWT from './custom-middleware.js';
 
 // default gateway path for get request to check if the server is runnig properly.
 app.get('/', (req, res) => res.send("Todo List Backend Server is running now."));
@@ -412,7 +413,7 @@ app.post('/api/add-todo-record', verifyJWT, async (req, res) => {
             return processErrStr(res, "Time is format like (HH:MM AM/PM) is required for adding to the todo record.", "succMsg");
         }
 
-        if (status !== "completed" || status !== "not completed") {
+        if (status !== "completed" && status !== "not completed") {
             return processErrStr(res, "Status value can only contain the string completed or not completed for adding to the todo record.", "succMsg");
         }
 
@@ -548,7 +549,7 @@ app.patch('/api/modify-todo-record', verifyJWT, async (req, res) => {
             return processErrStr(res, "Time is format like (HH:MM AM/PM) is required for adding to the todo record.", "succMsg");
         }
 
-        if (status !== "completed" || status !== "not completed") {
+        if (status !== "completed" && status !== "not completed") {
             return processErrStr(res, "Status value can only contain the string completed or not completed for adding to the todo record.", "succMsg");
         }
 

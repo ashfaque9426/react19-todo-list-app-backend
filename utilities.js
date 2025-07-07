@@ -72,15 +72,12 @@ function hasDateTimePassed(dateStr, timeStr) {
 
 // check if the date is today or not
 function isNotPastDate(inputDateStr) {
-    // Parse the input string into a Date object
-    const [year, month, day] = inputDateStr.split('/').map(Number);
-    const inputDate = new Date(year, month - 1, day); // JS months are 0-based
+    const [year, month, day] = inputDateStr.split(/[-/]/).map(Number); // handles both "-" and "/"
+    const inputDate = new Date(year, month - 1, day);
 
-    // Get today's date at midnight (00:00:00)
     const today = new Date();
-    today.setHours(0, 0, 0, 0); // Strip time
+    today.setHours(0, 0, 0, 0);
 
-    // Compare
     return inputDate >= today;
 }
 
