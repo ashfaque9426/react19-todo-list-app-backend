@@ -653,7 +653,7 @@ export async function getTodoTitles(userId) {
             return { titleArr: [] };
         }
 
-        const titleArray = rows.filter(row => isNotPastDate(row.Date)).map(row => row.Title);
+        const titleArray = rows.map(row => row.Title);
 
         return { titleArr: titleArray };
     } catch (err) {
