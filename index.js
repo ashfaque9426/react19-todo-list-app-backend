@@ -612,13 +612,24 @@ app.patch('/api/complete-todo-record', verifyJWT, async (req, res) => {
 });
 
 // delete todo record api
-app.delete('/api/delete-todo-record/:recordId', verifyJWT, async (req, res) => {
+app.delete('/api/delete-todo-record/:recordId/:date/:time', verifyJWT, async (req, res) => {
     try {
         // destructuring and initial check
-        const { recordId } = req.params;
+        const { recordId, date, time } = req.params;
 
-        if (!recordId) {
-            return processErrStr(res, "Record id paramater value is required for getting the specific record data.", "succMsg");
+        const dateRegex = /^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/;
+        const timeRegex = /^(0[1-9]|1[0-2]):[0-5]\d\s?(AM|PM)$/;
+
+        const parsedRecordId = parseInt(recordId);
+
+        if (isNaN(parsedRecordId) || !recordId) {
+            return processErrStr(res, "Record id paramater value as a number is required for getting the specific record data.", "succMsg");
+        }
+
+        if (!date || !dateRegex.test(date)) {
+            return processErrStr(res, "Date parameter value is required for deleting the todo record.", "succMsg");
+        } else if (!time || !timeRegex.test(time)) {
+            return processErrStr(res, "Time parameter value is required for deleting the todo record.", "succMsg");
         }
 
         // get the refresh token from cookies and check if the refresh token is available or not
@@ -636,7 +647,7 @@ app.delete('/api/delete-todo-record/:recordId', verifyJWT, async (req, res) => {
         }
 
         // delete the record data
-        const { succMsg, errMsg } = await deleteTodoRecord(decoded.userId, recordId);
+        const { succMsg, errMsg } = await deleteTodoRecord(decoded.userId, parsedRecordId, date, time);
 
         // if error occured return the error message.
         if (errMsg) {

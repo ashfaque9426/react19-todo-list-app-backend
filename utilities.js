@@ -796,15 +796,12 @@ export async function completeTodoRecord(userId, recordId, date) {
 }
 
 // detele todolist record
-export async function deleteTodoRecord(userId, recordId) {
+export async function deleteTodoRecord(userId, recordId, date, time) {
     // check recordId patameter is a number type. if not return a error message.
-    if (isNaN(recordId)) return { errMsg: "userId and recordId parameter value must be in number type to delete todo list record." };
-
+    if (isNaN(recordId)) return { errMsg: "Record Id parameter value must be in number type to delete todo list record." };
+    
     // check if the recordId is a valid number and if the date is not a past date
     if (!isNotPastDate(date)) return { errMsg: "The date you are trying to add is in the past. Please provide a valid date." };
-
-    // check if the date is not a past date
-    if (hasDateTimePassed(date, time)) return { errMsg: "The date or time you when you are trying to delete is in the past. Please provide a valid date." };
 
     // if log_in_status is 1 then delete the requested record of todo_list_user_data table by id field
     try {
