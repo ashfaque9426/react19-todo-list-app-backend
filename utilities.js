@@ -710,12 +710,10 @@ export async function modifyTodoRecord(date, title, description, time, status, r
 
     // if log_in_status is 1 then modify the current record of todo_list_user_data table by id field
     try {
-        const [rows] = await pool.query(`SELECT * FROM todo_list_user_data WHERE todo_list_user_data.id = ? AND users.log_in_Status = ?`, [recordId, 1]);
+        const [rows] = await pool.query(`SELECT * FROM todo_list_user_data JOIN users ON todo_list_user_data.user_id = users.id WHERE todo_list_user_data.id = ? AND users.log_in_Status = ?`, [recordId, 1]);
 
         if (rows.length === 0) {
             return { errMsg: "The record you are trying to modify does not exist in the database." };
-        } else if (rows[0].user_id !== recordId) {
-            return { errMsg: "You are not authorized to modify this record." };
         }
 
         // if user does not provide any changes to the record then return the error message
@@ -726,34 +724,39 @@ export async function modifyTodoRecord(date, title, description, time, status, r
         // update the record in the database
         // check if each column of the record is already updated or not, if not then update.
         let updateQuery = `UPDATE todo_list_user_data JOIN users ON todo_list_user_data.user_id = users.id`;
+        const updates = [];
         const params = [];
 
         if (rows[0].todo_date !== date) {
-            updateQuery += ` SET todo_date = ?`;
+            updates.push(`todo_list_user_data.todo_date = ?`);
             params.push(date);
         }
-
         if (rows[0].todo_title !== title) {
-            updateQuery += `, todo_title = ?`;
+            updates.push(`todo_list_user_data.todo_title = ?`);
             params.push(title);
         }
-
         if (rows[0].todo_description !== description) {
-            updateQuery += `, todo_description = ?`;
+            updates.push(`todo_list_user_data.todo_description = ?`);
             params.push(description);
         }
-
         if (rows[0].todo_time !== time) {
-            updateQuery += `, todo_time = ?`;
+            updates.push(`todo_list_user_data.todo_time = ?`);
             params.push(time);
         }
-
-        if (rows[0].todo_time !== time) {
-            updateQuery += `, todo_status = ?`;
+        if (rows[0].todo_status !== status) {
+            updates.push(`todo_list_user_data.todo_status = ?`);
             params.push(status);
         }
 
-        // required queries to update the record in the database
+        // If nothing to update, return early
+        if (updates.length === 0) {
+            return { errMsg: "No changes were made to the record." };
+        }
+
+        // Add SET clause
+        updateQuery += ` SET ${updates.join(', ')}`;
+
+        // WHERE clause
         updateQuery += ` WHERE todo_list_user_data.id = ? AND users.log_in_Status = ?`;
         params.push(recordId, 1);
 

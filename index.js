@@ -537,8 +537,10 @@ app.patch('/api/modify-todo-record', verifyJWT, async (req, res) => {
         // destructure required values from req.body
         const { date, title, description, time, status, recordId } = req.body;
 
+        const parsedRecordId = parseInt(recordId);
+
         // initial value check
-        if (!date || !title || !description || !recordId || !time || !status) {
+        if (!date || !title || !description || isNaN(parsedRecordId) || !time || !status) {
             return processErrStr(res, "All field params (date, title, description, time, status, recordId) are required for modifying todo record process.", "succMsg");
         }
 
@@ -554,7 +556,7 @@ app.patch('/api/modify-todo-record', verifyJWT, async (req, res) => {
         }
 
         // add the record to the database.
-        const { succMsg, errMsg } = await modifyTodoRecord(date, title, description, recordId);
+        const { succMsg, errMsg } = await modifyTodoRecord(date, title, description, time, status, parsedRecordId);
 
         // if error message returned from addTodoRecord then return the error message.
         if (errMsg) {
@@ -580,9 +582,15 @@ app.patch('/api/complete-todo-record', verifyJWT, async (req, res) => {
         // get record id and user id from req.body object
         const { userId, recordId, date } = req.body;
 
+        const dateRegex = /^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/;
+
         // check if record id and user id is available or not
         if (!userId || !recordId || !date) {
             return processErrStr(res, "User Id, Record id and date parameter values are required for completing todo record.", "succMsg");
+        }
+
+        if (!date || !dateRegex.test(date)) {
+            return processErrStr(res, "Date parameter value is required for deleting the todo record.", "succMsg");
         }
 
         // check if the user id is valid or not
@@ -612,13 +620,12 @@ app.patch('/api/complete-todo-record', verifyJWT, async (req, res) => {
 });
 
 // delete todo record api
-app.delete('/api/delete-todo-record/:recordId/:date/:time', verifyJWT, async (req, res) => {
+app.delete('/api/delete-todo-record/:recordId/:date', verifyJWT, async (req, res) => {
     try {
         // destructuring and initial check
-        const { recordId, date, time } = req.params;
+        const { recordId, date } = req.params;
 
         const dateRegex = /^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/;
-        const timeRegex = /^(0[1-9]|1[0-2]):[0-5]\d\s?(AM|PM)$/;
 
         const parsedRecordId = parseInt(recordId);
 
@@ -628,8 +635,6 @@ app.delete('/api/delete-todo-record/:recordId/:date/:time', verifyJWT, async (re
 
         if (!date || !dateRegex.test(date)) {
             return processErrStr(res, "Date parameter value is required for deleting the todo record.", "succMsg");
-        } else if (!time || !timeRegex.test(time)) {
-            return processErrStr(res, "Time parameter value is required for deleting the todo record.", "succMsg");
         }
 
         // get the refresh token from cookies and check if the refresh token is available or not
@@ -647,7 +652,7 @@ app.delete('/api/delete-todo-record/:recordId/:date/:time', verifyJWT, async (re
         }
 
         // delete the record data
-        const { succMsg, errMsg } = await deleteTodoRecord(decoded.userId, parsedRecordId, date, time);
+        const { succMsg, errMsg } = await deleteTodoRecord(decoded.userId, parsedRecordId, date);
 
         // if error occured return the error message.
         if (errMsg) {
